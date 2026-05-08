@@ -1,0 +1,35 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor settings
+.idea/
+.vscode/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Shell and log output
+*.log
+*.tmp
+
+# Local secrets and overrides
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+credentials/
+
+# Archive and export artifacts
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Local validation or scratch output
+tmp/
+scratch/
+out/

@@ -1,0 +1,15 @@
+[Unit]
+Description=Local_LLM Open WebUI container
+After=docker.service ollama.service network-online.target
+Wants=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/etc/default/local-llm
+ExecStart=/usr/local/bin/local-llm-run-open-webui.sh
+ExecStop=/usr/bin/docker rm -f ${LOCAL_LLM_WEBUI_CONTAINER_NAME:-open-webui}
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
