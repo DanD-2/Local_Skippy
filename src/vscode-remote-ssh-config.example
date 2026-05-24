@@ -1,0 +1,7 @@
+# Example ~/.ssh/config entry for VS Code Remote SSH
+Host local-skippy
+    HostName 192.168.128.5
+    User ubuntu
+    IdentityFile ~/.ssh/id_ed25519
+    ServerAliveInterval 30
+    ServerAliveCountMax 120

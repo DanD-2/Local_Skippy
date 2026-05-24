@@ -1,11 +1,20 @@
-# Local LLM Scripts
+# Local Skippy Automation Scripts
 
-This folder now contains:
+This folder contains practical automation for the dedicated Ubuntu Server 26.04 multi-agent stack:
 
-1. `validate-local-llm.sh` for service, GPU, and endpoint validation on the Local_LLM host.
-2. `run-open-webui.sh` for idempotent Open WebUI container deployment against a local Ollama runtime.
-3. `apply-ollama-gpu-policy.sh` for generating an Ollama systemd override from the Local_LLM environment file.
-4. `local-llm-open-webui.service` for systemd-based lifecycle management of the Open WebUI container wrapper.
-5. `local-llm.env.example` for the host environment settings used by the Local_LLM helper scripts and service files.
+1. `local-skippy-bootstrap.sh` top-level orchestration entry point.
+2. `local-skippy-preflight.sh` host validation checks.
+3. `local-skippy-init-env.sh` root-owned env initialization under `/etc/local-skippy/`.
+4. `local-skippy-agent-scaffold.sh` 4-agent policy/profile scaffolding.
+5. `local-skippy-backup.sh` default backup automation (configs, agent definitions, Open WebUI data, logs/reports).
+6. `local-skippy-health-report.sh` health dashboard/report generator for weekly review automation.
+7. `local-skippy-update-stack.sh` safe app-stack updates (no blind GPU driver upgrades).
+8. `run-open-webui.sh` Open WebUI deployment helper with container CPU/memory controls and optional cloud env-file support.
+9. `apply-ollama-gpu-policy.sh` Ollama systemd GPU and CPU quota enforcement helper.
+10. `validate-local-llm.sh` local runtime and endpoint validation.
+11. `local-skippy.env.example` and `cloud-provider.env.example` starter env files.
+12. `nginx-local-skippy.conf.example` optional reverse-proxy/HTTPS template.
+13. `local-skippy-weekly-review.service` and `.timer` templates for weekly evaluator reports.
+14. `vscode-remote-ssh-config.example` remote-dev-friendly SSH template for VS Code workflows.
 
-Future additions can extend this folder with backup helpers, health monitors, or model-management automation.
+Legacy Local_LLM files remain for compatibility, but `/etc/local-skippy/` is now the primary configuration root.

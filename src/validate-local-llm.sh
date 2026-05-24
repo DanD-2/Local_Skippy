@@ -1,10 +1,15 @@
 #!/usr/bin/env sh
 set -eu
 
-environment_file="${LOCAL_LLM_ENV_FILE:-/etc/default/local-llm}"
-ollama_host="${LOCAL_LLM_OLLAMA_HOST:-127.0.0.1:11434}"
-webui_url="${LOCAL_LLM_WEBUI_URL:-http://127.0.0.1:3000}"
-expected_gpus="${LOCAL_LLM_EXPECTED_GPUS:-}"
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+# shellcheck disable=SC1091
+. "$script_dir/local-skippy-common.sh"
+
+environment_file="$(resolve_env_file)"
+ollama_host="${LOCAL_SKIPPY_OLLAMA_HOST:-${LOCAL_LLM_OLLAMA_HOST:-127.0.0.1:11434}}"
+webui_url="${LOCAL_SKIPPY_WEBUI_URL:-${LOCAL_LLM_WEBUI_URL:-http://127.0.0.1:3000}}"
+expected_gpus="${LOCAL_SKIPPY_EXPECTED_GPUS:-${LOCAL_LLM_EXPECTED_GPUS:-}}"
+webui_container_name="${LOCAL_SKIPPY_WEBUI_CONTAINER_NAME:-${LOCAL_LLM_WEBUI_CONTAINER_NAME:-open-webui}}"
 
 if [ -f "$environment_file" ]; then
     # shellcheck disable=SC1090
@@ -52,8 +57,8 @@ check_http "http://$ollama_host/api/tags"
 check_http "$webui_url"
 
 if command -v docker >/dev/null 2>&1; then
-    if ! docker ps --format '{{.Names}}' | grep -qx 'open-webui'; then
-        printf 'container not running: open-webui\n' >&2
+    if ! docker ps --format '{{.Names}}' | grep -qx "$webui_container_name"; then
+        printf 'container not running: %s\n' "$webui_container_name" >&2
         failures=$((failures + 1))
     fi
 else

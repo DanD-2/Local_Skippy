@@ -1,0 +1,8 @@
+[Unit]
+Description=Local Skippy weekly health and evaluator report
+After=network-online.target docker.service ollama.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/local-skippy-health-report.sh

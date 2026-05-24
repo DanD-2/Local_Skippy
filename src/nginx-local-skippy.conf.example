@@ -1,0 +1,30 @@
+# Optional reverse proxy template for Local Skippy.
+# Keep direct LAN access as the default path. Add TLS only when certs are ready.
+
+server {
+    listen 80;
+    server_name local-skippy.lan;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# Optional TLS block (disabled until certificates are provisioned)
+# server {
+#     listen 443 ssl;
+#     server_name local-skippy.lan;
+#
+#     ssl_certificate /etc/letsencrypt/live/local-skippy/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/local-skippy/privkey.pem;
+#
+#     location / {
+#         proxy_pass http://127.0.0.1:3000;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#     }
+# }
