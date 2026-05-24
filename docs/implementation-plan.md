@@ -1,142 +1,173 @@
-# Local LLM Implementation Plan
+# Local Skippy Implementation Plan
 
 ## Objective
 
-Deploy a first local LLM server on Debian or Ubuntu that can serve browser-based AI interactions to users on the local network.
+Deploy a dedicated headless AI server on Ubuntu Server 24.04 LTS hosting four Hermes AI agents,
+accessible from a browser and VS Code, with full GPU inference capability and optional online AI
+provider integration.
 
-## Short Version
+## Phase Overview
 
-This project already has a practical default plan:
-
-1. Use the HP Z8 G4 workstation.
-2. Install Ubuntu Studio 24.04 LTS.
-3. Reserve one GPU for the workstation.
-4. Use Ollama plus Open WebUI.
-5. Keep the first rollout LAN-only.
-6. Validate the mixed workstation workload before adding optional extras.
-
-## Read These First
-
-1. `docs/start-here.md`
-2. `docs/z8g4-host-prep-checklist.md`
-3. `docs/storage-layout.md`
-4. `docs/first-build-execution-checklist.md`
-5. `docs/z8g4-install-commands.md`
-
-## Plan Picture
-
-```mermaid
-flowchart TD
-	A[Choose host and layout] --> B[Install Ubuntu Studio]
-	B --> C[Install NVIDIA, Docker, and Ollama]
-	C --> D[Apply Local_LLM helper files and GPU policy]
-	D --> E[Enable Open WebUI]
-	E --> F[Validate local and LAN access]
-	F --> G[Validate workstation workloads]
+```
+Phase 1 → Host and OS
+Phase 2 → Runtime and GPU
+Phase 3 → Agent Deployment
+Phase 4 → Remote Access
+Phase 5 → Operational Hardening
+Phase 6 → Optional: Online Providers and Advanced Integration
 ```
 
-The current preferred host build path is Ubuntu Studio 24.04 LTS on the HP Z8 G4 workstation when the creative toolchain remains Linux-friendly. Use `docs/ubuntu-24.04-install-runbook.md` as the primary implementation guide for the first deployment.
-Use `docs/creative-app-compatibility.md` to judge whether the active Resolve, CAD, notes, and browser workflows still justify the Linux-first host posture.
-Use `docs/resolve-nvidia-prep.md` to validate the Resolve and GPU-sharing posture before treating the workstation as production-ready.
-Use `docs/cad-selection.md` to decide whether FreeCAD or LibreCAD is the first CAD validation target.
-Use `docs/storage-layout.md` to keep the workstation optimized for Local_LLM first and video editing second.
-Use `docs/post-install-workstation-validation.md` after the base build to confirm the final Skippy workstation posture under mixed creative and Local_LLM load.
-Use `docs/z8g4-host-prep-checklist.md` before the OS install and `docs/gpu-reservation-and-layout.md` if one RTX 4060 must stay reserved for workstation use.
-Use `docs/first-build-execution-checklist.md` when actually executing the first host build so the install order is explicit.
-Use `docs/z8g4-install-commands.md` when you want the exact PowerShell and on-host command sequence rather than a checklist.
+---
+
+## Phase 1: Host and OS
+
+**Goal:** Clean, headless Ubuntu Server 24.04 LTS on the HP Z8 G4.
+
+Steps:
+
+1. Confirm BIOS settings: UEFI, Secure Boot off, all three GPUs visible.
+2. Install Ubuntu Server 24.04 LTS (no desktop packages).
+3. Set static IP `192.168.128.5`, hostname `skippy`.
+4. Partition SSD 1 for OS, SSD 2 for model and Docker data.
+5. Install NVIDIA driver 550-server and confirm three GPUs in `nvidia-smi`.
+6. Configure `ufw` firewall: allow SSH (22) and Open WebUI (3000) from LAN only.
+7. Disable SSH password auth; enable SSH key auth only.
+
+Exit criteria:
+
+- [ ] Three GPUs visible in `nvidia-smi`.
+- [ ] SSH key login works.
+- [ ] `ufw status` shows correct open ports.
+
+---
+
+## Phase 2: Runtime and GPU
+
+**Goal:** Ollama and Docker running with all three GPUs allocated.
+
+Steps:
+
+1. Install Docker CE and NVIDIA Container Toolkit.
+2. Install Ollama and configure the systemd service.
+3. Run `src/apply-ollama-gpu-policy.sh` to expose all three GPUs (`0,1,2`).
+4. Set `CPUQuota` in the Ollama systemd override for the 75 % CPU policy.
+5. Configure `/etc/default/skippy` from `src/skippy.env.example`.
+6. Install helper scripts to `/usr/local/bin/`.
+7. Pull the Finance agent model first:
+   ```bash
+   ollama pull nous-hermes2:34b-q4_K_M
+   ```
+
+Exit criteria:
+
+- [ ] `ollama run nous-hermes2:34b-q4_K_M ""` returns a response.
+- [ ] `ollama ps` shows the model using all three GPUs.
+- [ ] CPU quota is confirmed in `systemctl cat ollama`.
+
+---
+
+## Phase 3: Agent Deployment
+
+**Goal:** All four Hermes agents deployed and accessible via Open WebUI.
+
+Steps:
+
+1. Pull all agent models:
+   ```bash
+   ollama pull nous-hermes2:34b-q4_K_M
+   ollama pull nous-hermes2:13b-q4_K_M
+   ollama pull nous-hermes2-mixtral:8x7b-q4_K_M
+   ```
+2. Run `src/configure-agents.sh` to create Open WebUI model profiles for all four agents.
+3. Install and enable the Open WebUI systemd service.
+4. Deploy Open WebUI with `src/run-open-webui.sh`.
+5. Create the Open WebUI admin account (first registration = admin).
+6. Create individual user accounts for each human user.
+7. Disable public Open WebUI registration.
+8. Test each agent with a representative prompt.
+
+Exit criteria:
+
+- [ ] All four agents respond correctly to test prompts in Open WebUI.
+- [ ] Finance agent model is always resident (`ollama ps` shows it loaded).
+- [ ] `src/validate-local-llm.sh` passes all checks.
+
+---
+
+## Phase 4: Remote Access
+
+**Goal:** VS Code Remote SSH and optional reverse proxy working.
+
+Steps:
+
+1. Verify SSH key access from all developer devices.
+2. Configure VS Code Remote SSH and test the connection.
+3. Install the Continue extension and configure it to use Ollama.
+4. (Optional) Set up a reverse proxy for HTTPS if LAN HTTPS access is needed.
+5. Configure Proxmox API token for the Infrastructure agent if the Proxmox host is ready.
+
+Exit criteria:
+
+- [ ] VS Code Remote SSH connects to Skippy and opens a project folder.
+- [ ] Continue extension sends a prompt to Ollama and gets a response.
+- [ ] (If applicable) Proxmox connection validated with a test API call.
+
+---
+
+## Phase 5: Operational Hardening
+
+**Goal:** All services start on boot, weekly evaluation running, backups defined.
+
+Steps:
+
+1. Confirm all systemd services are enabled and start after reboot.
+2. Install and enable the weekly evaluation systemd timer.
+3. Run the first manual evaluation: `sudo skippy-weekly-review.sh`.
+4. Define and test the Open WebUI data backup procedure.
+5. Document the model recovery procedure (pull commands per agent).
+6. Review and file the first weekly evaluation report.
+
+Exit criteria:
+
+- [ ] Host reboot: all services come up automatically.
+- [ ] Weekly evaluation timer appears in `systemctl list-timers`.
+- [ ] First evaluation report written to `/var/log/skippy/`.
+- [ ] Backup procedure tested.
+
+---
+
+## Phase 6: Optional Integrations
+
+**Goal:** Online AI providers and advanced integrations enabled where appropriate.
+
+Steps (each is independent and optional):
+
+1. Add OpenAI API key to `/etc/default/skippy` and configure Open WebUI connection.
+2. Add Anthropic API key and test with Finance agent for long-document tasks.
+3. Configure Google Gemini or Groq as additional model options.
+4. Test VS Code Continue with an online provider as a fallback.
+5. Enable email or Ntfy notification for the weekly evaluation report.
+
+Exit criteria (per integration):
+
+- [ ] Provider connection test passes in Open WebUI admin settings.
+- [ ] Test prompt uses the online model and returns a response.
+- [ ] API cost appears in provider dashboard (confirms usage is tracked).
+
+---
 
 ## Current Default Decisions
 
-Unless you deliberately change the plan, assume these defaults:
-
-1. Host: HP Z8 G4.
-2. OS: Ubuntu Studio 24.04 LTS.
-3. Runtime: Ollama.
-4. Web UI: Open WebUI.
-5. GPU mode: one GPU reserved for the workstation, two for Local_LLM.
-6. Network exposure: LAN-only.
-
-## Phase 1: Host Selection And Baseline
-
-1. Use the HP Z8 G4 workstation as the target Debian or Ubuntu host.
-2. Confirm CPU, RAM, storage, and the exact GPU driver and CUDA-ready state for the three RTX 4060 cards.
-3. Confirm SSH administration path and package update state.
-4. Confirm the host has enough disk space for base software plus model storage.
-5. Decide whether one GPU must remain reserved for local workstation use.
-6. Prepare `/etc/default/local-llm` from `src/local-llm.env.example` so the initial runtime and validation scripts have a stable configuration surface.
-
-Exit criteria:
-
-1. The host is reachable and updated.
-2. Hardware limits are documented.
-3. A baseline rollback approach is identified.
-
-Human meaning:
-
-Do not start runtime work until the machine identity, storage layout, and GPU plan are actually settled.
-
-## Phase 2: Runtime Selection
-
-1. Install Ollama on the selected host.
-2. Verify local CLI inference with a small model first on one RTX 4060.
-3. Select one primary assistant model and one smaller fallback model that fit comfortably within single-GPU limits.
-4. Record model storage locations and service behavior.
-5. Measure prompt latency and GPU utilization before attempting any multi-GPU or higher-performance runtime changes.
-6. If mixed workstation mode is selected, constrain inference GPUs through the environment file and Ollama service override before production use.
-7. Apply the override with `src/apply-ollama-gpu-policy.sh` so the GPU reservation survives reboot and service restart.
-
-Exit criteria:
-
-1. Local inference works from the host shell.
-2. Startup and restart behavior are documented.
-3. Model disk usage is understood.
-
-Human meaning:
-
-The runtime phase is complete only when a real prompt succeeds locally and you know which GPUs are being used.
-
-## Phase 3: User Access Layer
-
-1. Install Open WebUI or an equivalent browser front end.
-2. Restrict access to the local network.
-3. Decide whether to publish through a reverse proxy or stay on direct LAN access.
-4. Validate browser access from at least one operator workstation.
-5. Manage the Open WebUI container through the provided `src/run-open-webui.sh` helper and `src/local-llm-open-webui.service` unit instead of ad hoc Docker commands.
-
-Exit criteria:
-
-1. Users can reach the interface over the LAN.
-2. The UI can send prompts to the local runtime.
-3. Authentication requirements are documented.
-
-Human meaning:
-
-Do not add reverse proxy or named DNS until direct LAN access is already working.
-
-## Phase 4: Operational Hardening
-
-1. Define model update procedure.
-2. Define service restart and validation procedure.
-3. Decide whether host and service monitoring should be added, and document the chosen toolchain locally.
-4. Document storage growth and backup expectations.
-5. Document any GPU-specific restart or driver recovery steps.
-6. Use `src/validate-local-llm.sh` as the first post-change validation pass after service changes.
-
-Exit criteria:
-
-1. Runbooks exist for restart, validation, and upgrade.
-2. Basic monitoring expectations are documented.
-3. Recovery expectations are explicit.
-
-Human meaning:
-
-These hardening tasks matter, but they are after the first working build, not before it.
-
-## Initial Validation Checklist
-
-1. SSH access to the host works.
-2. The runtime answers a local prompt.
-3. The web UI is reachable from another LAN machine.
-4. If HTTPS is used, the published name resolves and serves correctly.
-5. The selected model responds within acceptable latency for the target hardware.
-6. GPU utilization confirms the runtime is actually using the intended RTX 4060 device set.
+| Decision              | Value                                     |
+|-----------------------|-------------------------------------------|
+| Host                  | HP Z8 G4                                  |
+| OS                    | Ubuntu Server 24.04 LTS                   |
+| Runtime               | Ollama                                    |
+| Web UI                | Open WebUI                                |
+| GPU mode              | All 3 GPUs dedicated to AI (no desktop)   |
+| CPU overflow target   | ≤ 75 % sustained                          |
+| Network exposure      | LAN-only by default                       |
+| Finance agent model   | `nous-hermes2:34b-q4_K_M`                 |
+| Infra agent model     | `nous-hermes2:13b-q4_K_M`                 |
+| Software Eng model    | `nous-hermes2-mixtral:8x7b-q4_K_M`        |
+| Evaluator model       | `nous-hermes2:13b-q4_K_M`                 |

@@ -2,152 +2,100 @@
 
 ## Purpose
 
-Use this layout for the Skippy workstation so the machine is optimized for Local_LLM first and video editing second while still keeping the workstation usable for general creative work.
+This document defines the storage layout for the Skippy dedicated AI server.  The host is
+optimised for AI inference first.  There are no video editing or creative workstation workloads.
 
-## Current Storage Inventory
+## Storage Inventory
 
-1. `2` HP SSD FX900 Pro M.2 `1 TB` drives.
-2. `4` physical `1 TB` hard drives attached to the RAID controller.
-3. Remote LAN share: `\\192.168.128.6\Storage`.
+| Device            | Type           | Size  | Role                          |
+|-------------------|----------------|-------|-------------------------------|
+| SSD 1             | HP FX900 Pro M.2| 1 TB  | Ubuntu Server OS and home     |
+| SSD 2             | HP FX900 Pro M.2| 1 TB  | AI model and Docker data      |
+| Remote LAN share  | SMB             | —     | Optional transfer share       |
+
+Note: The four 1 TB HDDs previously attached as a RAID array are not used for AI inference
+workloads.  They may be used for backup or log archiving if connected, but are not part of the
+primary serving path.
 
 ## Design Priorities
 
-1. LLM runtime and model responsiveness come first.
-2. Video editing performance comes second.
-3. Capacity is less important than fast active working sets.
-4. Avoid storing hot LLM data on spinning disks.
-5. Keep shared network storage available for ingress, exports, and collaboration, but not for hot model reads.
+1. AI model read speed comes first — all hot data on SSD.
+2. OS stability comes second — keep model I/O off the OS disk.
+3. Capacity is less important than latency and throughput.
+4. No creative media storage is needed on this server.
 
-## Storage Picture
+## Recommended Mount Layout
 
-```mermaid
-flowchart TD
-	A[Skippy Storage] --> B[SSD 1]
-	A --> C[SSD 2]
-	A --> D[RAID10 HDD Array]
-	A --> E[SMB Share]
-	B --> B1[Ubuntu Studio and apps]
-	B --> B2[/ and /home]
-	C --> C1[/var/lib/ollama]
-	C --> C2[/var/lib/docker]
-	C --> C3[Optional /srv/fast-work]
-	D --> D1[/srv/media]
-	D --> D2[Bulk media and exports]
-	E --> E1[Transfers and collaboration only]
-	E --> E2[Not for model storage]
+| Mount point        | Device  | Contents                              |
+|--------------------|---------|---------------------------------------|
+| `/`                | SSD 1   | Ubuntu Server OS, packages, home dirs |
+| `/var/lib/ollama`  | SSD 2   | Ollama model files                    |
+| `/var/lib/docker`  | SSD 2   | Docker images and volumes (Open WebUI)|
+| `/var/log/skippy`  | SSD 1   | Evaluation reports and action log     |
+
+### Implementation
+
+Partition SSD 2 as a single ext4 partition.  Mount it at `/data` and create symlinks:
+
+```bash
+sudo mkfs.ext4 /dev/nvme1n1p1
+echo '/dev/nvme1n1p1 /data ext4 defaults,noatime 0 2' | sudo tee -a /etc/fstab
+sudo mount /data
+sudo mkdir -p /data/ollama /data/docker
+sudo ln -s /data/ollama /var/lib/ollama
+sudo ln -s /data/docker /var/lib/docker
 ```
 
-## Remember This
+Verify after reboot:
 
-1. SSD 1 keeps the workstation responsive.
-2. SSD 2 keeps Local_LLM fast.
-3. RAID10 keeps large media local without stealing SSD space.
-4. The SMB share is only a convenience layer.
+```bash
+df -h /var/lib/ollama /var/lib/docker
+```
 
-## Recommended Layout
+Both should show SSD 2 as the backing device.
 
-## SSD 1: OS And Workstation Apps
+## Model Storage Estimate
 
-Use the first 1 TB SSD for:
+| Agent model                              | Approx size |
+|------------------------------------------|-------------|
+| `nous-hermes2:34b-q4_K_M`               | ~20 GB      |
+| `nous-hermes2:13b-q4_K_M`               | ~8 GB       |
+| `nous-hermes2-mixtral:8x7b-q4_K_M`      | ~26 GB      |
+| Open WebUI Docker image and volumes      | ~5 GB       |
+| **Total**                                | **~59 GB**  |
 
-1. Ubuntu Studio 24.04 LTS.
-2. Core workstation applications.
-3. User home directories.
+SSD 2 at 1 TB provides substantial room for model growth and Docker data.
 
-Suggested posture:
+## Remote LAN Share (Optional)
 
-1. `/` on SSD 1.
-2. `/home` on SSD 1 unless you later have a strong reason to split it.
+The SMB share at `\\192.168.128.6\Storage` may be used for:
 
-## SSD 2: Local_LLM Fast Data
+- Backup of evaluation reports.
+- Transferring configuration files during initial setup.
 
-Use the second 1 TB SSD for the LLM and container hot path.
+Do **not** use it for:
 
-Recommended mount targets:
+- `/var/lib/ollama` — too slow for model I/O.
+- `/var/lib/docker` — Docker requires local filesystem semantics.
 
-1. `/var/lib/ollama`
-2. `/var/lib/docker`
-3. Optional shared fast workspace such as `/srv/fast-work`
+If mounting persistently on Ubuntu:
 
-Reasoning:
-
-1. Keeps model pulls, model reads, container state, and Open WebUI data off the OS disk.
-2. Prevents LLM I/O from fighting the desktop and creative apps on the OS SSD.
-3. Gives the LLM stack the fastest storage available after RAM and GPU.
-
-## HDD Array: Video Projects And Bulk Data
-
-Use the four 1 TB HDDs as a RAID10 array.
-
-Recommended role:
-
-1. Active project storage for larger media assets.
-2. Exports and working renders that do not need SSD latency.
-3. Bulk project data and archives that do not belong on the LLM SSD.
-
-Why RAID10:
-
-1. Better write behavior than parity RAID for creative workloads.
-2. Better resilience than RAID0 while still favoring speed over raw capacity.
-3. Appropriate for the stated preference of speed over capacity.
-
-Do not use the HDD RAID set for:
-
-1. `/var/lib/ollama`
-2. `/var/lib/docker`
-3. Primary model storage
-
-## Remote LAN Share: Shared Transfer And Collaboration Storage
-
-Use the remote SMB share `\\192.168.128.6\Storage` as a mapped shared location, not as part of the primary Skippy performance path.
-
-Recommended role:
-
-1. Project ingress and egress.
-2. Shared exports and deliverables.
-3. Cross-machine handoff storage.
-4. Optional shared mount on Ubuntu at `/mnt/storage` for operator convenience.
-
-Do not use the remote share for:
-
-1. `/var/lib/ollama`
-2. `/var/lib/docker`
-3. Resolve cache or other latency-sensitive scratch data
-4. Primary active model storage
-
-Credential handling:
-
-1. Do not store the SMB password directly in repository markdown.
-2. On Windows, enter the credential at mapping time.
-3. On Ubuntu, store the credential in a root-owned file such as `/root/.smb-skippy-storage` with `600` permissions if a persistent mount is needed.
-
-## Recommended Mount Model
-
-Use a simple first layout:
-
-1. SSD 1: `/`
-2. SSD 2: `/var/lib/ollama` and `/var/lib/docker`
-3. RAID10 HDD array: `/srv/media`
-4. Remote SMB share: mapped separately for shared storage access only
-
-Optional follow-up:
-
-1. Add `/srv/fast-work` on SSD 2 if you want a dedicated scratch area for smaller active LLM-adjacent or project files.
-
-## Operational Notes
-
-1. LLM model storage should stay on SSD 2.
-2. Docker data should stay on SSD 2.
-3. Large raw media, exports, and general project bulk data should live on `/srv/media`.
-4. If Resolve caches become large, keep them under review instead of blindly placing them on the LLM SSD.
-5. Use `\\192.168.128.6\Storage` for shared transfers and collaborative storage, not for the main Local_LLM runtime path.
+```bash
+# Store credentials in a root-only file — never in repo docs:
+sudo install -m 600 -o root /dev/null /root/.smbcredentials
+echo "username=<smb-user>" | sudo tee /root/.smbcredentials
+echo "password=<smb-password>" | sudo tee -a /root/.smbcredentials
+echo "//192.168.128.6/Storage /mnt/storage cifs credentials=/root/.smbcredentials,uid=daniel,gid=daniel,iocharset=utf8 0 0" \
+  | sudo tee -a /etc/fstab
+sudo mount /mnt/storage
+```
 
 ## Success Criteria
 
-The layout is correct when:
+The storage layout is correct when:
 
-1. The OS remains responsive under normal workstation use.
-2. Local_LLM model access is SSD-backed.
-3. Bulk video data is offloaded to the HDD RAID10 array.
-4. The remote share is available for shared storage without becoming a dependency for core inference performance.
-5. The storage plan reflects speed-first priorities rather than maximum capacity.
+1. `df -h /var/lib/ollama` shows SSD 2 as the backing device.
+2. `df -h /var/lib/docker` shows SSD 2 as the backing device.
+3. The OS SSD (`/`) has at least 50 GB free after install.
+4. `ollama pull nous-hermes2:34b-q4_K_M` completes without a disk-full error.
+5. Open WebUI data volume is on SSD 2 (`docker volume inspect open-webui`).

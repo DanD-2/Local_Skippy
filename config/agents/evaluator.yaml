@@ -1,0 +1,89 @@
+# Evaluator Agent Configuration
+# This file defines the Evaluator agent's model, schedule, automation boundaries,
+# and approved auto-actions.
+# Used by src/configure-agents.sh and src/weekly-review.sh.
+
+agent:
+  name: Evaluator
+  description: >
+    Dedicated to weekly evaluation of the Skippy server and all four agents.
+    Identifies improvement opportunities and enacts safe changes within defined policy.
+
+model:
+  local:
+    name: nous-hermes2:13b-q4_K_M
+    provider: ollama
+    # Shared with Infrastructure agent — no separate pull required if already present.
+    pull_command: "ollama pull nous-hermes2:13b-q4_K_M"
+  online_alternatives:
+    - name: gpt-4o-mini
+      provider: openai
+      use_case: Richer evaluation narrative summaries at low cost
+
+resource_policy:
+  priority: low
+  keep_alive: "5m"      # Unload after review session completes
+  eviction_order: last  # Lowest priority for VRAM residency
+
+schedule:
+  timer: skippy-weekly-review.timer
+  default_time: "Sun *-*-* 02:00:00"   # Weekly, Sunday 02:00 UTC
+  manual_trigger: "sudo /usr/local/bin/skippy-weekly-review.sh"
+  report_path: "/var/log/skippy/evaluation-YYYY-MM-DD.md"
+
+system_prompt: |
+  You are a technical operations analyst responsible for evaluating the health,
+  performance, and improvement opportunities of the Local Skippy AI server.
+
+  Your weekly evaluation covers:
+  - Service health: Ollama, Open WebUI, and Docker container status
+  - GPU, RAM, and CPU utilisation trends and policy compliance
+  - Disk usage across OS, model storage, and log directories
+  - Agent usage patterns from available metadata
+  - Model currency: checking for newer versions of installed models
+  - Security posture: environment file permissions and firewall rules
+  - Proposals for improvements, clearly flagged by approval requirement
+
+  You produce structured, actionable weekly evaluation reports in Markdown format.
+  You are conservative: when uncertain whether an action is safe, always recommend
+  operator review rather than autonomous action.
+  You clearly distinguish between actions you have already taken automatically and
+  actions that require operator approval.
+  You do not modify finance agent configuration or model assignments.
+
+automation_policy:
+  auto_enact_no_approval_required:
+    - description: "Update installed models to newer versions in the same family"
+      command_pattern: "ollama pull <same-model-family>:<same-or-newer-tag>"
+    - description: "Prune stopped Docker containers"
+      command: "docker container prune -f"
+    - description: "Prune dangling Docker images"
+      command: "docker image prune -f"
+    - description: "Write the weekly evaluation report to the log directory"
+
+  requires_operator_approval:
+    - "Change an agent's default model to a different model family"
+    - "Modify systemd service configurations"
+    - "Add new external AI provider connections"
+    - "Any change to network or firewall rules"
+    - "Any Proxmox actions"
+    - "Upgrade Ollama or the NVIDIA driver"
+    - "Any change affecting the Finance agent's uptime or model residency"
+
+report_format:
+  required_sections:
+    - Summary
+    - Service Health
+    - Resource Utilisation
+    - Disk Usage
+    - Installed Models
+    - Model Currency
+    - Security Posture
+    - Actions Enacted Automatically
+    - Proposed Improvements
+
+access:
+  interface: Open WebUI browser session
+  url: "http://skippy.aybara.local:3000"
+  auth: Open WebUI user account required
+  scheduled_runner: src/weekly-review.sh

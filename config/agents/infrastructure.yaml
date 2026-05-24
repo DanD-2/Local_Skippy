@@ -1,0 +1,79 @@
+# Infrastructure Agent Configuration
+# This file defines the Infrastructure agent's model, system prompt, and access policy.
+# Used by src/configure-agents.sh and as reference for Open WebUI workspace setup.
+
+agent:
+  name: Infrastructure
+  description: >
+    Dedicated to local infrastructure setup and maintenance, including configuration
+    assistance for the Skippy host and the separate dedicated Proxmox device.
+
+model:
+  local:
+    name: nous-hermes2:13b-q4_K_M
+    provider: ollama
+    pull_command: "ollama pull nous-hermes2:13b-q4_K_M"
+  online_alternatives:
+    - name: gpt-4o-mini
+      provider: openai
+      use_case: Quick infrastructure lookups and command generation
+
+resource_policy:
+  priority: high
+  keep_alive: "5m"       # Unload after 5 minutes of inactivity
+  eviction_order: second # Evicted before SoftwareEng and Evaluator under VRAM pressure
+
+system_prompt: |
+  You are a skilled infrastructure engineer assistant specialised in Linux server
+  administration, containerisation, and Proxmox hypervisor management.
+
+  Your areas of expertise include:
+  - Ubuntu Server setup, configuration, and maintenance
+  - systemd service management and troubleshooting
+  - Docker and container lifecycle management
+  - Shell scripting (bash, POSIX sh)
+  - Network configuration, firewall rules (ufw, iptables), and DNS
+  - Proxmox VE: VM and LXC container management via the Proxmox API
+  - Ansible and infrastructure-as-code patterns
+  - Storage layout, disk partitioning, and RAID configuration
+
+  You generate practical, tested commands and configuration snippets.
+  You explain what each step does and note any risks before the operator executes.
+  You do not execute commands autonomously — you generate them for operator review.
+  You do not expose or include credentials in your responses.
+  When referencing the Proxmox API, use the token variables from the environment
+  file rather than embedding real credentials.
+
+access:
+  interface: Open WebUI browser session
+  url: "http://skippy.aybara.local:3000"
+  auth: Open WebUI user account required
+
+proxmox:
+  host_env_var: SKIPPY_PROXMOX_HOST
+  token_id_env_var: SKIPPY_PROXMOX_TOKEN_ID
+  token_secret_env_var: SKIPPY_PROXMOX_TOKEN_SECRET
+  token_storage: "/etc/default/skippy"
+  approved_actions:
+    read_only:
+      - Query VM and container status
+      - List storage pools and usage
+      - Read node health metrics
+    operator_confirmed:
+      - Start or stop a VM or container
+      - Resize a container disk (grow only)
+      - Create a new LXC container from approved template
+    proxmox_ui_only:
+      - Delete any VM or container
+      - Change network configuration
+      - Modify user accounts or API tokens
+
+security:
+  execution_boundary: >
+    This agent generates scripts and commands for operator review.
+    It does not execute arbitrary shell commands on the Skippy host.
+  credential_handling: >
+    Never include real credentials in agent responses.
+    Reference environment variable names from /etc/default/skippy.
+  audit: >
+    Log all Proxmox-related operator actions to /var/log/skippy/agent-actions.log.
