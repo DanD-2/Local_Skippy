@@ -1,11 +1,22 @@
-# Local LLM Scripts
+# Local Skippy Scripts
 
-This folder now contains:
+This folder contains host-side helper scripts and service files for the Local Skippy AI appliance.
 
-1. `validate-local-llm.sh` for service, GPU, and endpoint validation on the Local_LLM host.
-2. `run-open-webui.sh` for idempotent Open WebUI container deployment against a local Ollama runtime.
-3. `apply-ollama-gpu-policy.sh` for generating an Ollama systemd override from the Local_LLM environment file.
-4. `local-llm-open-webui.service` for systemd-based lifecycle management of the Open WebUI container wrapper.
-5. `local-llm.env.example` for the host environment settings used by the Local_LLM helper scripts and service files.
+## Files
 
-Future additions can extend this folder with backup helpers, health monitors, or model-management automation.
+1. `validate-local-llm.sh` — service, GPU, and endpoint validation; run after any service change.
+2. `run-open-webui.sh` — idempotent Open WebUI container deployment against a local Ollama runtime.
+3. `apply-ollama-gpu-policy.sh` — write an Ollama systemd override from the environment file to expose all GPUs.
+4. `local-llm-open-webui.service` — systemd unit for Open WebUI container lifecycle management.
+5. `local-llm.env.example` — template for `/etc/default/local-llm`; copy and populate before first use.
+
+## Deployment Notes
+
+1. Copy `local-llm.env.example` to `/etc/default/local-llm` and set `chmod 600`.
+2. Set `LOCAL_LLM_GPU_DEVICES=0,1,2` to allocate all three GPUs to inference.
+3. Install `apply-ollama-gpu-policy.sh` to `/usr/local/bin/` and run it to write the Ollama systemd override.
+4. Install `run-open-webui.sh` to `/usr/local/bin/local-llm-run-open-webui.sh`.
+5. Install `local-llm-open-webui.service` to `/etc/systemd/system/` and enable it.
+6. Run `validate-local-llm.sh` after install and after any service change to confirm the stack is healthy.
+
+See `docs/ubuntu-24.04-install-runbook.md` for the full installation sequence.

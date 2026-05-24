@@ -1,153 +1,95 @@
-# Skippy Storage Layout
+# Storage Layout
 
 ## Purpose
 
-Use this layout for the Skippy workstation so the machine is optimized for Local_LLM first and video editing second while still keeping the workstation usable for general creative work.
+Use this layout for the Skippy server so the machine is optimized for AI inference and container operations.
+
+This is a headless server. There are no media, creative, or workstation storage requirements.
 
 ## Current Storage Inventory
 
 1. `2` HP SSD FX900 Pro M.2 `1 TB` drives.
-2. `4` physical `1 TB` hard drives attached to the RAID controller.
-3. Remote LAN share: `\\192.168.128.6\Storage`.
+2. `4` physical `1 TB` hard drives attached to the RAID controller (spare — not used for primary AI path).
 
 ## Design Priorities
 
-1. LLM runtime and model responsiveness come first.
-2. Video editing performance comes second.
-3. Capacity is less important than fast active working sets.
-4. Avoid storing hot LLM data on spinning disks.
-5. Keep shared network storage available for ingress, exports, and collaboration, but not for hot model reads.
+1. AI model reads and writes come first.
+2. Container and service state are fast-path.
+3. OS and packages are stable and isolated from AI data.
+4. Logs and evaluation reports are on the OS disk unless they grow large.
 
 ## Storage Picture
 
 ```mermaid
 flowchart TD
-	A[Skippy Storage] --> B[SSD 1]
-	A --> C[SSD 2]
-	A --> D[RAID10 HDD Array]
-	A --> E[SMB Share]
-	B --> B1[Ubuntu Studio and apps]
-	B --> B2[/ and /home]
-	C --> C1[/var/lib/ollama]
-	C --> C2[/var/lib/docker]
-	C --> C3[Optional /srv/fast-work]
-	D --> D1[/srv/media]
-	D --> D2[Bulk media and exports]
-	E --> E1[Transfers and collaboration only]
-	E --> E2[Not for model storage]
+    A[Skippy Storage] --> B[SSD 1]
+    A --> C[SSD 2]
+    B --> B1[Ubuntu Server OS]
+    B --> B2[/ and /home]
+    B --> B3[Logs and config]
+    C --> C1[/var/lib/ollama — models]
+    C --> C2[/var/lib/docker — container state]
+    C --> C3[/srv/agent-data — optional agent workspace]
 ```
 
-## Remember This
-
-1. SSD 1 keeps the workstation responsive.
-2. SSD 2 keeps Local_LLM fast.
-3. RAID10 keeps large media local without stealing SSD space.
-4. The SMB share is only a convenience layer.
-
-## Recommended Layout
-
-## SSD 1: OS And Workstation Apps
+## SSD 1: OS
 
 Use the first 1 TB SSD for:
 
-1. Ubuntu Studio 24.04 LTS.
-2. Core workstation applications.
+1. Ubuntu Server 24.04 LTS.
+2. System packages and service binaries.
 3. User home directories.
+4. System logs under `/var/log`.
+5. Service config files under `/etc`.
 
-Suggested posture:
+Suggested layout:
 
 1. `/` on SSD 1.
-2. `/home` on SSD 1 unless you later have a strong reason to split it.
+2. `/home` on SSD 1.
 
-## SSD 2: Local_LLM Fast Data
+## SSD 2: AI Data
 
-Use the second 1 TB SSD for the LLM and container hot path.
+Use the second 1 TB SSD for the AI and container hot path.
 
 Recommended mount targets:
 
-1. `/var/lib/ollama`
-2. `/var/lib/docker`
-3. Optional shared fast workspace such as `/srv/fast-work`
+1. `/var/lib/ollama` — Ollama model storage and state.
+2. `/var/lib/docker` — Docker container data, Open WebUI volume.
+3. `/srv/agent-data` — optional per-agent workspace or scratch area.
 
 Reasoning:
 
 1. Keeps model pulls, model reads, container state, and Open WebUI data off the OS disk.
-2. Prevents LLM I/O from fighting the desktop and creative apps on the OS SSD.
-3. Gives the LLM stack the fastest storage available after RAM and GPU.
+2. Prevents AI I/O from competing with the OS SSD on heavy inference cycles.
+3. Gives the AI stack the fastest storage available after RAM and GPU.
 
-## HDD Array: Video Projects And Bulk Data
+## HDD Array
 
-Use the four 1 TB HDDs as a RAID10 array.
+The four 1 TB HDDs are available as spare capacity.
 
-Recommended role:
+Possible uses in this project:
 
-1. Active project storage for larger media assets.
-2. Exports and working renders that do not need SSD latency.
-3. Bulk project data and archives that do not belong on the LLM SSD.
+1. Archive models that are not in active use.
+2. Evaluation logs and weekly report archives if SSD 2 grows constrained.
+3. Backup snapshots.
 
-Why RAID10:
+Do not use the HDD array for:
 
-1. Better write behavior than parity RAID for creative workloads.
-2. Better resilience than RAID0 while still favoring speed over raw capacity.
-3. Appropriate for the stated preference of speed over capacity.
-
-Do not use the HDD RAID set for:
-
-1. `/var/lib/ollama`
-2. `/var/lib/docker`
-3. Primary model storage
-
-## Remote LAN Share: Shared Transfer And Collaboration Storage
-
-Use the remote SMB share `\\192.168.128.6\Storage` as a mapped shared location, not as part of the primary Skippy performance path.
-
-Recommended role:
-
-1. Project ingress and egress.
-2. Shared exports and deliverables.
-3. Cross-machine handoff storage.
-4. Optional shared mount on Ubuntu at `/mnt/storage` for operator convenience.
-
-Do not use the remote share for:
-
-1. `/var/lib/ollama`
-2. `/var/lib/docker`
-3. Resolve cache or other latency-sensitive scratch data
-4. Primary active model storage
-
-Credential handling:
-
-1. Do not store the SMB password directly in repository markdown.
-2. On Windows, enter the credential at mapping time.
-3. On Ubuntu, store the credential in a root-owned file such as `/root/.smb-skippy-storage` with `600` permissions if a persistent mount is needed.
+1. `/var/lib/ollama` (active model storage).
+2. `/var/lib/docker` (container state).
+3. Any hot AI inference path.
 
 ## Recommended Mount Model
 
-Use a simple first layout:
-
 1. SSD 1: `/`
 2. SSD 2: `/var/lib/ollama` and `/var/lib/docker`
-3. RAID10 HDD array: `/srv/media`
-4. Remote SMB share: mapped separately for shared storage access only
-
-Optional follow-up:
-
-1. Add `/srv/fast-work` on SSD 2 if you want a dedicated scratch area for smaller active LLM-adjacent or project files.
-
-## Operational Notes
-
-1. LLM model storage should stay on SSD 2.
-2. Docker data should stay on SSD 2.
-3. Large raw media, exports, and general project bulk data should live on `/srv/media`.
-4. If Resolve caches become large, keep them under review instead of blindly placing them on the LLM SSD.
-5. Use `\\192.168.128.6\Storage` for shared transfers and collaborative storage, not for the main Local_LLM runtime path.
+3. HDD array: optional archive only — `/srv/archive` if used
 
 ## Success Criteria
 
 The layout is correct when:
 
-1. The OS remains responsive under normal workstation use.
-2. Local_LLM model access is SSD-backed.
-3. Bulk video data is offloaded to the HDD RAID10 array.
-4. The remote share is available for shared storage without becoming a dependency for core inference performance.
-5. The storage plan reflects speed-first priorities rather than maximum capacity.
+1. The OS and services boot cleanly from SSD 1.
+2. Ollama model access is SSD 2-backed.
+3. Docker and Open WebUI state is SSD 2-backed.
+4. Disk usage on SSD 2 is monitored and does not silently fill the volume.
