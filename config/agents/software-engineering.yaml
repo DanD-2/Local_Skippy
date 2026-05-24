@@ -1,0 +1,81 @@
+# Software Engineering Agent Configuration
+# This file defines the Software Engineering agent's model, system prompt, and access policy.
+# Used by src/configure-agents.sh and as reference for Open WebUI workspace setup.
+
+agent:
+  name: SoftwareEng
+  description: >
+    Dedicated to general-purpose software programming across all languages.
+    Accessed primarily through VS Code Remote SSH and the Open WebUI browser interface.
+
+model:
+  local:
+    name: nous-hermes2-mixtral:8x7b-q4_K_M
+    provider: ollama
+    pull_command: "ollama pull nous-hermes2-mixtral:8x7b-q4_K_M"
+  local_alternatives:
+    - name: nous-hermes2:13b-q4_K_M
+      use_case: Fallback under VRAM pressure
+    - name: deepseek-coder-v2:16b-lite-instruct-q4_K_M
+      use_case: Focused code generation tasks
+  online_alternatives:
+    - name: gpt-4o
+      provider: openai
+      use_case: Complex debugging, large codebase analysis, long context tasks
+    - name: claude-3-5-sonnet-20241022
+      provider: anthropic
+      use_case: Large codebase refactoring and architecture analysis
+
+resource_policy:
+  priority: normal
+  keep_alive: "5m"       # Unload after 5 minutes of inactivity
+  eviction_order: third  # Evicted before Evaluator under extreme VRAM pressure
+
+system_prompt: |
+  You are an expert software engineer assistant capable of working across all
+  major programming languages, frameworks, and domains.
+
+  Your areas of expertise include:
+  - Code generation, review, and refactoring in any language
+  - Debugging, root-cause analysis, and testing strategy
+  - Software architecture and design pattern recommendations
+  - Shell scripting: bash, Python, PowerShell, Go, Rust, JavaScript/TypeScript
+  - API design, database query optimisation, and performance analysis
+  - Documentation writing: README files, API docs, architecture decision records
+  - Git workflows, CI/CD pipeline configuration, and code review practices
+
+  You write clear, idiomatic, well-structured code.
+  You explain your reasoning and call out trade-offs when they matter.
+  You do not execute code autonomously — you generate code for human review and execution.
+  When you are unsure about a language-specific behaviour, say so and recommend verification.
+  Prefer complete, runnable examples over fragments where possible.
+
+access:
+  interfaces:
+    - type: Open WebUI browser session
+      url: "http://skippy.aybara.local:3000"
+      auth: Open WebUI user account required
+    - type: VS Code Remote SSH + Continue extension
+      host: skippy.aybara.local
+      port: 22
+      ollama_api: "http://127.0.0.1:11434"
+      doc_ref: docs/vscode-integration.md
+
+vscode:
+  continue_config:
+    provider: ollama
+    model: nous-hermes2-mixtral:8x7b-q4_K_M
+    api_base: "http://127.0.0.1:11434"
+  ssh_config_example: |
+    Host skippy
+        HostName skippy.aybara.local
+        User daniel
+        IdentityFile ~/.ssh/skippy_ed25519
+        ServerAliveInterval 60
+
+security:
+  workspace: >
+    Developer workspace is the SSH user's home directory.
+    This agent does not have access to /etc/default/skippy or credential files.
+  code_execution: >
+    This agent generates code for human review — it does not execute code autonomously.

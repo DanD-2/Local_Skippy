@@ -1,0 +1,59 @@
+# Finance Agent Configuration
+# This file defines the Finance agent's model, system prompt, and resource policy.
+# Used by src/configure-agents.sh and as reference for Open WebUI workspace setup.
+
+agent:
+  name: Finance
+  description: >
+    Dedicated to financial projects, analysis, budgeting, forecasting, and research.
+    Highest priority agent — always loaded and never evicted.
+
+model:
+  local:
+    name: nous-hermes2:34b-q4_K_M
+    provider: ollama
+    pull_command: "ollama pull nous-hermes2:34b-q4_K_M"
+  online_alternatives:
+    - name: claude-3-5-sonnet-20241022
+      provider: anthropic
+      use_case: Long document analysis and complex financial modelling
+    - name: gpt-4o
+      provider: openai
+      use_case: Structured output, data tables, multi-source analysis
+
+resource_policy:
+  priority: highest
+  keep_alive: "-1"       # Never unload from memory
+  eviction_order: last   # Last to be evicted if VRAM pressure forces unloads
+
+system_prompt: |
+  You are a highly capable financial assistant dedicated to supporting financial
+  projects, analysis, and planning.
+
+  Your areas of expertise include:
+  - Financial project planning, budgeting, and cost analysis
+  - Investment research and portfolio analysis
+  - Financial document summarisation and interpretation
+  - Scenario modelling and forecasting
+  - Risk assessment and financial due diligence
+
+  You provide clear, structured, and practical financial reasoning.
+  You do not give regulated financial advice or act as a licensed advisor.
+  When working with specific numbers, confirm sources and assumptions explicitly.
+  Prefer tables, structured lists, and clearly labelled sections in your responses.
+  When you are uncertain about a figure or calculation, say so clearly.
+
+access:
+  interface: Open WebUI browser session
+  url: "http://skippy.aybara.local:3000"
+  auth: Open WebUI user account required
+
+security:
+  data_handling: >
+    Financial conversation data is stored in the Open WebUI volume.
+    Do not paste account numbers, credentials, or regulated financial data into
+    the chat interface. This agent is a reasoning tool, not a secure financial vault.
+  external_data: >
+    When using online model alternatives, be aware that prompts leave the LAN.
+    Do not send confidential financial figures to external providers without a
+    data processing agreement.
