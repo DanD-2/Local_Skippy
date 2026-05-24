@@ -1,38 +1,35 @@
-# Ubuntu 24.04 Install Runbook For Local LLM
+# Ubuntu Server 24.04 Install Runbook
 
 ## Purpose
 
-Use this runbook to build the first Local_LLM host on the HP Z8 G4 workstation with Ubuntu 24.04 LTS.
+Use this runbook to build the Local Skippy AI appliance on the HP Z8 G4 with Ubuntu Server 24.04 LTS.
 
-The target outcome is a LAN-reachable LLM server with NVIDIA drivers, Ollama, and Open WebUI installed in a maintainable baseline configuration.
+The target outcome is a headless LAN-reachable multi-agent AI server with NVIDIA drivers, Ollama, Open WebUI, and all four Hermes agent profiles configured.
 
 ## Short Version
 
-If you want the shortest safe path, do this in order:
-
-1. Finish the host decisions before installing Ubuntu.
-2. Install Ubuntu Studio 24.04 LTS and confirm SSH works.
+1. Install Ubuntu Server 24.04 LTS — headless, no desktop.
+2. Enable SSH during install and confirm remote access.
 3. Install the NVIDIA driver and record `nvidia-smi -L` output.
 4. Install Docker and Ollama.
-5. Install the Local_LLM helper files from `src/`.
-6. Set the GPU list in `/etc/default/local-llm`.
-7. Enable Open WebUI.
-8. Test locally first.
-9. Test from another LAN machine second.
+5. Apply GPU policy: all three GPUs to inference.
+6. Deploy Open WebUI.
+7. Pull Hermes models and configure agent profiles.
+8. Run validation.
 
 ## Build Picture
 
 ```mermaid
 flowchart TD
-    A[Prep decisions] --> B[Ubuntu install]
-    B --> C[SSH and updates]
-    C --> D[NVIDIA driver]
-    D --> E[Docker]
-    E --> F[Ollama]
-    F --> G[Local_LLM helper files]
-    G --> H[Open WebUI]
-    H --> I[Local validation]
-    I --> J[LAN validation]
+    A[Ubuntu Server install] --> B[SSH and updates]
+    B --> C[NVIDIA driver]
+    C --> D[Docker]
+    D --> E[Ollama]
+    E --> F[GPU policy: all 3 GPUs]
+    F --> G[Open WebUI]
+    G --> H[Hermes models]
+    H --> I[Agent profiles]
+    I --> J[Validation]
 ```
 
 ## Stop Rules
@@ -40,80 +37,39 @@ flowchart TD
 Do not continue to the next phase if any of these are still broken:
 
 1. SSH access does not work.
-2. `nvidia-smi` does not show all expected GPUs.
+2. `nvidia-smi` does not show all three GPUs.
 3. Docker or Ollama does not start cleanly.
 4. Open WebUI does not answer locally on `http://127.0.0.1:3000`.
 
-## Recommended Host Baseline
-
-1. Ubuntu Studio 24.04 LTS when the same machine must support interactive media creation and CAD work under Linux.
-2. SSH enabled during install.
-3. Static or DHCP-reserved LAN address.
-4. One administrative user plus `sudo` access.
-
-For the current Skippy target, read `docs/storage-layout.md` before installation so the SSD, RAID10, and SMB-share roles stay consistent.
-
-## Why Ubuntu 24.04
-
-1. Ubuntu 24.04 LTS is the best first-fit balance between stability and current NVIDIA support.
-2. Ubuntu is better documented than Debian for consumer RTX AI workloads.
-3. Broad community coverage exists for Ollama, Docker, Open WebUI, and Linux creative tooling.
-4. Ubuntu Studio is the better fit when the machine must remain an interactive workstation with media-creation duties.
-
-## Pre-Install Decisions
-
-Capture these before touching the workstation:
-
-1. Final hostname.
-2. Planned LAN IP address or DHCP reservation.
-3. Whether one RTX 4060 must remain reserved for console or display use.
-4. Whether model storage should live on the OS disk or a separate data volume.
-5. Whether the first rollout is operator-only or multi-user on day one.
-6. Whether the target creative applications are Linux-native or Windows-first.
-
-Use `docs/z8g4-host-prep-checklist.md` to complete these decisions before the OS install starts.
-
-If the required creative applications are Windows-first, stop here and revisit the host-OS choice before continuing with a Linux bare-metal plan.
-
-## Installation Sequence
-
-Human note:
-
-Use `docs/z8g4-install-commands.md` when you want exact commands. Use this runbook when you want the logic behind the order.
-
 ## Phase 1: Base OS Install
 
-1. Install Ubuntu 24.04 LTS on the Z8 G4.
-2. Enable OpenSSH Server during setup.
-3. Apply all available package updates after first boot.
-4. Confirm remote SSH access works before proceeding with AI tooling.
-
-For the current mixed-workstation requirement, prefer Ubuntu Studio 24.04 LTS unless you have already decided the box will not run interactive creative applications under Linux.
-
-Suggested validation:
+1. Install Ubuntu Server 24.04 LTS on the HP Z8 G4.
+2. Choose Ubuntu Server (not Ubuntu Studio, not Ubuntu Desktop).
+3. Enable OpenSSH Server during setup.
+4. Do not install any desktop environment.
+5. Apply all available package updates after first boot.
+6. Confirm remote SSH access works before proceeding with AI tooling.
 
 ```sh
 hostnamectl
 lsb_release -a
 ip address
-sudo apt update
-sudo apt full-upgrade -y
+sudo apt update && sudo apt full-upgrade -y
 ```
 
 Operator checkpoints:
 
 1. The host boots cleanly.
 2. SSH works from the operator machine.
-3. The host has current updates before GPU tooling is installed.
+3. No desktop environment is present.
+4. The host has current updates before GPU tooling is installed.
 
 ## Phase 2: NVIDIA Driver Baseline
 
-1. Confirm the three RTX 4060 cards are visible to the OS.
+1. Confirm all three RTX 4060 cards are visible to the OS.
 2. Install the recommended Ubuntu NVIDIA driver.
 3. Reboot if required.
-4. Validate `nvidia-smi` sees the intended GPUs.
-
-Suggested validation:
+4. Validate `nvidia-smi` sees all three GPUs.
 
 ```sh
 lspci | grep -i nvidia
@@ -130,26 +86,25 @@ Expected result:
 2. Driver version is current on the Ubuntu-supported path.
 3. No card is missing unexpectedly.
 
-If one GPU must remain reserved for workstation use, document the intended device numbering now and apply the mixed-workstation guidance from `docs/gpu-reservation-and-layout.md` after the base runtime install.
+Record the exact GPU indices from `nvidia-smi -L`. These will be used in the environment file.
 
 Operator checkpoints:
 
 1. All three GPUs appear.
-2. You know which GPU will remain reserved for the workstation.
-3. You have written down the real GPU numbering.
+2. You have recorded the real GPU numbering.
 
-## Phase 3: Container And Runtime Prerequisites
+## Phase 3: Container Prerequisites
 
-1. Install Docker Engine using the Ubuntu-supported package path or the standard path you choose for this repository.
+1. Install Docker Engine.
 2. Enable Docker at boot.
-3. Install NVIDIA container support only if the chosen Open WebUI deployment path needs GPU-aware containers later.
-
-Suggested validation:
+3. Install NVIDIA container toolkit so Docker containers can access GPUs.
 
 ```sh
 sudo apt install -y docker.io
 sudo systemctl enable --now docker
-sudo systemctl status docker --no-pager
+sudo apt install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
 docker --version
 ```
 
@@ -157,79 +112,45 @@ Operator checkpoints:
 
 1. Docker is active.
 2. Docker starts at boot.
+3. NVIDIA container toolkit is installed.
 
 ## Phase 4: Ollama Install
 
 1. Install Ollama on the host.
 2. Start and enable the Ollama service.
-3. Pull a small test model first.
-4. Run a prompt locally from the shell.
-
-Suggested validation:
+3. Copy `src/local-llm.env.example` to `/etc/default/local-llm`.
+4. Set `LOCAL_LLM_GPU_DEVICES=0,1,2` to expose all three GPUs to Ollama.
+5. Install and run `src/apply-ollama-gpu-policy.sh` to write the systemd override.
+6. Pull a small test model and run a prompt.
 
 ```sh
 curl -fsSL https://ollama.com/install.sh | sh
 sudo systemctl enable --now ollama
-systemctl status ollama --no-pager
+sudo cp src/local-llm.env.example /etc/default/local-llm
+# Edit /etc/default/local-llm and confirm LOCAL_LLM_GPU_DEVICES=0,1,2
+sudo install -m 755 src/apply-ollama-gpu-policy.sh /usr/local/bin/apply-ollama-gpu-policy.sh
+sudo apply-ollama-gpu-policy.sh
+sudo systemctl daemon-reload && sudo systemctl restart ollama
 ollama pull llama3.1:8b
 ollama run llama3.1:8b "Respond with the word ready."
 ```
 
-Operator note:
-
-Start with one single-GPU-friendly quantized model. Do not begin by chasing the largest model that might barely fit.
-
-If you need to reserve one GPU for workstation use, add an Ollama systemd override that constrains `CUDA_VISIBLE_DEVICES` after confirming the intended device numbering with `nvidia-smi -L`.
-
-Preferred repository-backed path:
-
-1. Copy `src/local-llm.env.example` to `/etc/default/local-llm`.
-2. Set `LOCAL_LLM_GPU_DEVICES` to the desired inference device list.
-3. Install `src/apply-ollama-gpu-policy.sh` as `/usr/local/bin/apply-ollama-gpu-policy.sh`.
-4. Run `/usr/local/bin/apply-ollama-gpu-policy.sh`.
-5. Run `systemctl daemon-reload && systemctl restart ollama`.
-
 Operator checkpoints:
 
-1. Ollama runs locally.
-2. The first model responds.
-3. The GPU decision is reflected in the environment file before user access is enabled.
+1. Ollama runs and uses GPU acceleration.
+2. All three GPUs are available to inference.
+3. The environment file reflects `LOCAL_LLM_GPU_DEVICES=0,1,2`.
 
-## Phase 5: Open WebUI Install
+## Phase 5: Open WebUI
 
-The simplest first deployment path is a containerized Open WebUI instance that talks to local Ollama.
-
-The repository now includes host-side scaffolding for this deployment:
-
-1. `src/local-llm.env.example`
-2. `src/run-open-webui.sh`
-3. `src/local-llm-open-webui.service`
-4. `src/apply-ollama-gpu-policy.sh`
-
-Suggested deployment:
+1. Install the Open WebUI container using the provided helpers.
+2. Enable the systemd service.
 
 ```sh
-sudo docker run -d \
-  --name open-webui \
-  --restart unless-stopped \
-  -p 3000:8080 \
-  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
-  -v open-webui:/app/backend/data \
-  --add-host=host.docker.internal:host-gateway \
-  ghcr.io/open-webui/open-webui:main
-```
-
-Preferred operational path:
-
-1. Copy `src/local-llm.env.example` to `/etc/default/local-llm`.
-2. Install `src/run-open-webui.sh` as `/usr/local/bin/local-llm-run-open-webui.sh`.
-3. Install `src/local-llm-open-webui.service` under `/etc/systemd/system/`.
-4. If using reserved-GPU mode, install and run `src/apply-ollama-gpu-policy.sh` before enabling user-facing services.
-5. Run `systemctl daemon-reload` and `systemctl enable --now local-llm-open-webui.service`.
-
-Suggested validation:
-
-```sh
+sudo install -m 755 src/run-open-webui.sh /usr/local/bin/local-llm-run-open-webui.sh
+sudo cp src/local-llm-open-webui.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now local-llm-open-webui.service
 sudo docker ps
 curl -I http://127.0.0.1:3000
 ```
@@ -237,28 +158,38 @@ curl -I http://127.0.0.1:3000
 Operator checkpoints:
 
 1. The Open WebUI container is running.
-2. The local WebUI endpoint answers.
+2. The local WebUI endpoint answers on port 3000.
 
-## Phase 6: LAN Publication
+## Phase 6: Hermes Models and Agent Profiles
+
+1. Pull the Hermes model variants for the four agents.
+2. In Open WebUI, create four named model configurations.
+3. Apply system prompts and priorities from `config/agents/`.
+
+```sh
+ollama pull nous-hermes-2-mistral-7b-dpo
+# Pull additional variants as defined in docs/agent-topology.md
+```
+
+Open WebUI agent setup:
+
+1. Open `http://192.168.128.5:3000` from a LAN browser.
+2. Create model configurations named: Finance, Infrastructure, Software Engineering, Evaluator.
+3. Assign system prompts from `config/agents/*.yaml`.
+4. Set Finance agent to highest priority.
+
+Operator checkpoints:
+
+1. All four agent configurations respond to test prompts.
+2. Finance agent is designated highest priority.
+
+## Phase 7: LAN Publication
 
 1. Keep the first deployment LAN-only.
-2. Validate direct access on `http://host-or-ip:3000` first.
-3. Only add reverse-proxy publication after the direct path works cleanly.
-4. If HTTPS publication is desired, add any DNS and reverse-proxy layer as an explicit follow-up rather than a hidden prerequisite.
+2. Validate direct access on `http://192.168.128.5:3000` from another machine.
+3. Only add reverse-proxy publication after the direct path works.
 
-Human rule:
-
-Do not add DNS or reverse proxy until the direct IP path already works.
-
-## Phase 7: First Operational Checks
-
-1. Confirm Ollama restarts cleanly after reboot.
-2. Confirm Open WebUI starts automatically.
-3. Record model storage location and disk consumption.
-4. Record which GPU or GPUs are intended for inference.
-5. Run the repository validation helper after installation changes.
-
-Suggested validation:
+## Phase 8: Final Validation
 
 ```sh
 systemctl status ollama --no-pager
@@ -273,32 +204,37 @@ Operator checkpoints:
 
 1. Ollama restarts after reboot.
 2. Open WebUI restarts after reboot.
-3. The final disk usage matches the intended SSD and RAID roles.
+3. All three GPUs are active and visible.
+4. Validation script passes.
 
 ## Recommended First Models
 
-Start with one of these model classes:
+| Agent | Model |
+|---|---|
+| Finance | `hermes-3-llama-3.1-8b` (or larger if VRAM allows) |
+| Infrastructure | `hermes-3-llama-3.1-8b` |
+| Software Engineering | `hermes-3-llama-3.1-8b` or `deepseek-coder-v2` |
+| Evaluator | `hermes-3-llama-3.1-8b` |
 
-1. A 7B to 8B instruct model as the primary baseline.
-2. A second smaller fallback model for fast smoke tests.
-
-Do not treat 128 GB of system RAM as a substitute for GPU VRAM when choosing the first production model.
+Start with single-GPU-sized quantized models. Use multi-GPU for larger models after the baseline is working.
 
 ## Hardening Follow-Up
 
-After the base deployment works, add:
+After the base deployment works, apply:
 
-1. A named DNS endpoint.
-2. Reverse-proxy publication if browser UX should match the rest of the local platform.
-3. Backup guidance for Open WebUI state and Ollama model inventory.
-4. Monitoring for host reachability, Ollama service health, and web UI availability.
+1. SSH key authentication and disable password auth — see `docs/security-model.md`.
+2. UFW firewall with only required ports open.
+3. Optional named DNS and reverse-proxy for browser access.
+4. Backup for Open WebUI state and Ollama model inventory — see `docs/operations.md`.
+5. Proxmox API token setup for the Infrastructure agent — see `docs/proxmox-integration.md`.
 
 ## Minimum Success Criteria
 
 The host build is successful when:
 
-1. Ubuntu 24.04 is updated and remotely reachable.
-2. `nvidia-smi` shows the expected RTX 4060 devices.
-3. Ollama answers a local prompt successfully.
+1. Ubuntu Server 24.04 is updated and remotely reachable by SSH.
+2. `nvidia-smi` shows all three RTX 4060 devices.
+3. Ollama answers a local prompt using GPU acceleration.
 4. Open WebUI is reachable from another LAN machine.
-5. The deployment can be rebooted without manual recovery steps.
+5. All four agent profiles respond to test prompts.
+6. The deployment survives a full reboot without manual recovery steps.
