@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Local Skippy weekly report
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
