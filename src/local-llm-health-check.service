@@ -1,0 +1,14 @@
+[Unit]
+Description=Local LLM Health Check Service
+Documentation=file:///usr/local/lib/local-llm-health-check.sh
+After=local-llm-open-webui.service ollama.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/local-llm-health-check.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=local-llm-health
+
+[Install]
+WantedBy=multi-user.target

@@ -2,9 +2,7 @@
 
 ## Purpose
 
-Use this checklist before installing Ubuntu 24.04 LTS on the HP Z8 G4 Local_LLM host.
-
-For the current mixed-workstation requirement, treat Ubuntu Studio 24.04 LTS as the preferred Linux choice unless the creative software requirements force a different host-OS decision.
+Use this checklist before installing Ubuntu Server 26.04 LTS on the HP Z8 G4 Local_LLM host.
 
 The goal is to make BIOS, storage, networking, and GPU-role decisions explicit before software deployment begins.
 
@@ -15,7 +13,7 @@ Before installing Ubuntu, decide these five things:
 1. What the host will be called.
 2. How the host will get its IP address.
 3. Which disks will hold OS, LLM data, and media data.
-4. Whether one GPU stays reserved for the workstation.
+4. Whether all GPUs stay available to Local_LLM or one must be reserved for another role.
 5. Whether the first build stays LAN-only.
 
 If these are not decided, stop and decide them first.
@@ -40,11 +38,11 @@ Record these before changes:
 3. Planned LAN IP address or DHCP reservation.
 4. Planned administrator account name.
 
-For the current target, those values are expected to be Skippy, `192.168.128.5`, and `Daniel` unless you deliberately change the plan.
+For the current target, those values are expected to be Skippy, `192.168.128.5`, and `daniel` unless you deliberately change the plan.
 
 ## BIOS And Firmware Checklist
 
-1. Update the workstation BIOS and device firmware to a stable vendor-supported baseline.
+1. Update the host BIOS and device firmware to a stable vendor-supported baseline.
 2. Confirm UEFI boot mode is enabled.
 3. Disable legacy boot unless a specific hardware requirement says otherwise.
 4. Confirm virtualization support is enabled if containers or future nested workloads may matter.
@@ -70,9 +68,9 @@ For the current Skippy plan, storage should be optimized for Local_LLM first and
 
 Recommended layout:
 
-1. SSD 1 for Ubuntu Studio, workstation applications, and base user data.
+1. SSD 1 for Ubuntu Server, base packages, and administrative data.
 2. SSD 2 for models, Open WebUI state, container data, and future Local_LLM logs.
-3. RAID10 HDD array for larger media project storage and bulk creative data.
+3. RAID10 HDD array for bulk datasets, model archives, exports, and general cold data.
 
 Recommended mount targets:
 
@@ -93,9 +91,9 @@ See `docs/storage-layout.md` for the current recommended Skippy layout.
 
 Human summary:
 
-1. SSD 1 is for Ubuntu and desktop responsiveness.
+1. SSD 1 is for Ubuntu and base system state.
 2. SSD 2 is for Local_LLM speed.
-3. RAID10 is for large media.
+3. RAID10 is for large non-hot data.
 4. The SMB share is optional and not part of the hot runtime path.
 
 ## Network Baseline
@@ -129,7 +127,7 @@ Recommended first approach:
 1. Use dedicated inference host mode if the system will be managed over SSH only.
 2. Use mixed workstation mode if the machine will keep a local desktop session.
 
-For the current Skippy workstation build, mixed workstation mode is the default answer.
+For the current Skippy server build, dedicated inference host mode is the default answer.
 
 ## Security Baseline
 

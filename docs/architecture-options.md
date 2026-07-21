@@ -8,11 +8,11 @@ Choose a practical first architecture for serving local AI interactions on a Deb
 
 For this project, the current first-choice stack is already decided:
 
-1. Ubuntu Studio 24.04 LTS.
+1. Ubuntu Server 26.04 LTS (headless).
 2. Ollama.
 3. Open WebUI.
 4. LAN-only access first.
-5. One GPU reserved for the workstation.
+5. All 3 GPUs dedicated to Local_LLM inference.
 
 Use the other options in this file only if the first build works and later performance needs force a change.
 
@@ -44,7 +44,7 @@ Run Ollama as the local model runtime and expose Open WebUI for browser access.
 
 Strengths:
 
-1. Fastest path to a working local AI service.
+1. Workable path to a working and efficient local AI service.
 2. Large amount of community documentation.
 3. Good fit for single-host LAN deployment.
 4. Easy to pair with an existing reverse proxy.
@@ -118,12 +118,13 @@ This is usually the wrong first move for a home or small-lab build because it hi
 
 The first deployment should use:
 
-1. Ubuntu Studio 24.04 LTS on the HP Z8 G4 if the creative stack is Linux-friendly.
-2. Ollama for initial local inference.
+1. Ubuntu Server 26.04 LTS on the HP Z8 G4 in headless mode, dedicated to Local_LLM.
+2. Ollama for local inference.
 3. Open WebUI for browser access.
 4. Optional local DNS and reverse-proxy tooling if named HTTPS access is required.
 5. A LAN-only security boundary with no public exposure.
-6. Reserved-GPU mode as the default operating posture.
+6. All 3 GPUs dedicated to Local_LLM inference.
+7. No local desktop or workstation applications.
 
 ## OS Fit For Media And CAD Work
 
@@ -131,7 +132,7 @@ This project now has a stronger host constraint: the Z8 G4 must also handle vide
 
 Decision rule:
 
-1. If the target creative applications are Linux-friendly, Ubuntu Studio 24.04 LTS is the best fit inside the current Local_LLM scope.
+1. If the target creative applications are Linux-friendly, Ubuntu Studio 26.04 LTS is the best fit inside the current Local_LLM scope.
 2. If the target creative applications are Windows-first, a Linux-only bare-metal plan is no longer the best recommendation.
 3. In that Windows-first case, either separate the LLM role onto another Linux host or run the LLM stack in a Linux guest/runtime while keeping the workstation OS aligned with the creative software.
 
@@ -147,9 +148,8 @@ Implications:
 
 1. System RAM is generous for the host OS, containers, caching, and multiple supporting services.
 2. The three RTX 4060 cards make GPU acceleration realistic for local inference.
-3. The deployment should not assume one large shared GPU memory pool across all three cards.
+3. The deployment should assume one large shared GPU memory pool across all three cards.
 4. For the first rollout, choose a runtime and models that work well on a single card, then use additional GPUs for parallel workers or future runtime upgrades if needed.
-5. Because the workstation now has confirmed creative duties, reserve one GPU for desktop stability and treat only the remaining cards as the primary inference devices.
 
 Practical starting model class:
 

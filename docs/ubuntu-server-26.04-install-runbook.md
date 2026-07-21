@@ -1,8 +1,8 @@
-# Ubuntu 24.04 Install Runbook For Local LLM
+# Ubuntu Server 26.04 Install Runbook For Local LLM
 
 ## Purpose
 
-Use this runbook to build the first Local_LLM host on the HP Z8 G4 workstation with Ubuntu 24.04 LTS.
+Use this runbook to build the first Local_LLM host on the HP Z8 G4 with Ubuntu Server 26.04 LTS.
 
 The target outcome is a LAN-reachable LLM server with NVIDIA drivers, Ollama, and Open WebUI installed in a maintainable baseline configuration.
 
@@ -11,7 +11,7 @@ The target outcome is a LAN-reachable LLM server with NVIDIA drivers, Ollama, an
 If you want the shortest safe path, do this in order:
 
 1. Finish the host decisions before installing Ubuntu.
-2. Install Ubuntu Studio 24.04 LTS and confirm SSH works.
+2. Install Ubuntu Server 26.04 LTS and confirm SSH works.
 3. Install the NVIDIA driver and record `nvidia-smi -L` output.
 4. Install Docker and Ollama.
 5. Install the Local_LLM helper files from `src/`.
@@ -24,7 +24,7 @@ If you want the shortest safe path, do this in order:
 
 ```mermaid
 flowchart TD
-    A[Prep decisions] --> B[Ubuntu install]
+    A[Prep decisions] --> B[Ubuntu Server install]
     B --> C[SSH and updates]
     C --> D[NVIDIA driver]
     D --> E[Docker]
@@ -46,49 +46,76 @@ Do not continue to the next phase if any of these are still broken:
 
 ## Recommended Host Baseline
 
-1. Ubuntu Studio 24.04 LTS when the same machine must support interactive media creation and CAD work under Linux.
+1. Ubuntu Server 26.04 LTS.
 2. SSH enabled during install.
 3. Static or DHCP-reserved LAN address.
-4. One administrative user plus `sudo` access.
+4. One administrative user named `daniel` plus `sudo` access.
+5. Dedicated inference host mode by default.
 
 For the current Skippy target, read `docs/storage-layout.md` before installation so the SSD, RAID10, and SMB-share roles stay consistent.
 
-## Why Ubuntu 24.04
+## Why Ubuntu Server 26.04
 
-1. Ubuntu 24.04 LTS is the best first-fit balance between stability and current NVIDIA support.
-2. Ubuntu is better documented than Debian for consumer RTX AI workloads.
-3. Broad community coverage exists for Ollama, Docker, Open WebUI, and Linux creative tooling.
-4. Ubuntu Studio is the better fit when the machine must remain an interactive workstation with media-creation duties.
+1. It matches the current installer media already prepared for Skippy.
+2. A headless server posture fits the current dedicated-host direction better than a desktop-oriented install.
+3. Ubuntu remains well-documented for consumer RTX AI workloads, Docker, Ollama, and Open WebUI.
+4. The first deployment does not require a local desktop session.
+
+## Automated USB Install Path (Drive D)
+
+If `D:` is your Ubuntu Server 26.04 USB installer, you can automate most of the first-build flow with repository scripts.
+
+From PowerShell in the repository root, run the one-command orchestrator:
+
+```powershell
+pwsh -File .\src\invoke-skippy-usb-automation.ps1
+```
+
+The command runs a preflight checklist, prompts for the admin password, generates a Linux SHA-512 crypt hash, and writes unattended install files to `D:\nocloud`.
+
+If you need explicit control, use:
+
+1. `src/new-linux-password-hash.ps1` for hash generation.
+2. `src/prepare-ubuntu-server-26.04-usb-autoinstall.ps1` for direct USB preparation.
+
+Then boot from USB and append this to the GRUB Linux boot line:
+
+```text
+autoinstall ds=nocloud\;s=/cdrom/nocloud/
+```
+
+After first boot and SSH login, run:
+
+```sh
+sudo /opt/local-llm-src/bootstrap-local-llm-host.sh
+```
+
+This bootstrap script installs core packages, enables Docker and Ollama, installs repository helper files, applies GPU policy, enables Open WebUI, and runs validation.
 
 ## Pre-Install Decisions
 
-Capture these before touching the workstation:
+Capture these before touching the host:
 
 1. Final hostname.
 2. Planned LAN IP address or DHCP reservation.
-3. Whether one RTX 4060 must remain reserved for console or display use.
+3. Whether all three RTX 4060 devices will remain available to inference.
 4. Whether model storage should live on the OS disk or a separate data volume.
 5. Whether the first rollout is operator-only or multi-user on day one.
-6. Whether the target creative applications are Linux-native or Windows-first.
 
 Use `docs/z8g4-host-prep-checklist.md` to complete these decisions before the OS install starts.
 
-If the required creative applications are Windows-first, stop here and revisit the host-OS choice before continuing with a Linux bare-metal plan.
-
 ## Installation Sequence
-
-Human note:
 
 Use `docs/z8g4-install-commands.md` when you want exact commands. Use this runbook when you want the logic behind the order.
 
 ## Phase 1: Base OS Install
 
-1. Install Ubuntu 24.04 LTS on the Z8 G4.
+1. Install Ubuntu Server 26.04 LTS on the Z8 G4.
 2. Enable OpenSSH Server during setup.
-3. Apply all available package updates after first boot.
-4. Confirm remote SSH access works before proceeding with AI tooling.
-
-For the current mixed-workstation requirement, prefer Ubuntu Studio 24.04 LTS unless you have already decided the box will not run interactive creative applications under Linux.
+3. Create the administrative user as `daniel` and keep the default `sudo` access.
+4. Enter the account password interactively during setup rather than storing it in repository docs.
+5. Apply all available package updates after first boot.
+6. Confirm remote SSH access works before proceeding with AI tooling.
 
 Suggested validation:
 
@@ -130,13 +157,11 @@ Expected result:
 2. Driver version is current on the Ubuntu-supported path.
 3. No card is missing unexpectedly.
 
-If one GPU must remain reserved for workstation use, document the intended device numbering now and apply the mixed-workstation guidance from `docs/gpu-reservation-and-layout.md` after the base runtime install.
-
 Operator checkpoints:
 
 1. All three GPUs appear.
-2. You know which GPU will remain reserved for the workstation.
-3. You have written down the real GPU numbering.
+2. You have written down the real GPU numbering.
+3. You know whether you will expose all three GPUs or a reduced set to Local_LLM.
 
 ## Phase 3: Container And Runtime Prerequisites
 
@@ -179,8 +204,6 @@ Operator note:
 
 Start with one single-GPU-friendly quantized model. Do not begin by chasing the largest model that might barely fit.
 
-If you need to reserve one GPU for workstation use, add an Ollama systemd override that constrains `CUDA_VISIBLE_DEVICES` after confirming the intended device numbering with `nvidia-smi -L`.
-
 Preferred repository-backed path:
 
 1. Copy `src/local-llm.env.example` to `/etc/default/local-llm`.
@@ -199,33 +222,19 @@ Operator checkpoints:
 
 The simplest first deployment path is a containerized Open WebUI instance that talks to local Ollama.
 
-The repository now includes host-side scaffolding for this deployment:
+The repository includes host-side scaffolding for this deployment:
 
 1. `src/local-llm.env.example`
 2. `src/run-open-webui.sh`
 3. `src/local-llm-open-webui.service`
 4. `src/apply-ollama-gpu-policy.sh`
 
-Suggested deployment:
-
-```sh
-sudo docker run -d \
-  --name open-webui \
-  --restart unless-stopped \
-  -p 3000:8080 \
-  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
-  -v open-webui:/app/backend/data \
-  --add-host=host.docker.internal:host-gateway \
-  ghcr.io/open-webui/open-webui:main
-```
-
 Preferred operational path:
 
 1. Copy `src/local-llm.env.example` to `/etc/default/local-llm`.
 2. Install `src/run-open-webui.sh` as `/usr/local/bin/local-llm-run-open-webui.sh`.
 3. Install `src/local-llm-open-webui.service` under `/etc/systemd/system/`.
-4. If using reserved-GPU mode, install and run `src/apply-ollama-gpu-policy.sh` before enabling user-facing services.
-5. Run `systemctl daemon-reload` and `systemctl enable --now local-llm-open-webui.service`.
+4. Run `systemctl daemon-reload` and `systemctl enable --now local-llm-open-webui.service`.
 
 Suggested validation:
 
@@ -245,10 +254,6 @@ Operator checkpoints:
 2. Validate direct access on `http://host-or-ip:3000` first.
 3. Only add reverse-proxy publication after the direct path works cleanly.
 4. If HTTPS publication is desired, add any DNS and reverse-proxy layer as an explicit follow-up rather than a hidden prerequisite.
-
-Human rule:
-
-Do not add DNS or reverse proxy until the direct IP path already works.
 
 ## Phase 7: First Operational Checks
 
@@ -297,7 +302,7 @@ After the base deployment works, add:
 
 The host build is successful when:
 
-1. Ubuntu 24.04 is updated and remotely reachable.
+1. Ubuntu Server 26.04 is updated and remotely reachable.
 2. `nvidia-smi` shows the expected RTX 4060 devices.
 3. Ollama answers a local prompt successfully.
 4. Open WebUI is reachable from another LAN machine.

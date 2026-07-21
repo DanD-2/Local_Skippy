@@ -1,0 +1,19 @@
+[Unit]
+Description=Local LLM First-Boot Initialization
+Documentation=https://github.com/your-org/local-llm
+After=network-online.target cloud-final.service
+Wants=network-online.target
+ConditionPathExists=!/var/lib/local-llm/.bootstrap-complete
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=local-llm-first-boot
+ExecStart=/usr/local/lib/local-llm-first-boot-runner.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

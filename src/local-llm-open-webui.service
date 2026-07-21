@@ -6,9 +6,10 @@ Wants=docker.service network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+Environment=LOCAL_LLM_WEBUI_CONTAINER_NAME=open-webui
 EnvironmentFile=-/etc/default/local-llm
 ExecStart=/usr/local/bin/local-llm-run-open-webui.sh
-ExecStop=/usr/bin/docker rm -f ${LOCAL_LLM_WEBUI_CONTAINER_NAME:-open-webui}
+ExecStop=/usr/bin/docker rm -f ${LOCAL_LLM_WEBUI_CONTAINER_NAME}
 TimeoutStartSec=0
 
 [Install]

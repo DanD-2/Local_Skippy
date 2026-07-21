@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Use this layout for the Skippy workstation so the machine is optimized for Local_LLM first and video editing second while still keeping the workstation usable for general creative work.
+Use this layout for the Skippy server so the machine is optimized for Local_LLM first while keeping cold data and optional shared storage off the hot runtime path.
 
 ## Current Storage Inventory
 
@@ -13,7 +13,7 @@ Use this layout for the Skippy workstation so the machine is optimized for Local
 ## Design Priorities
 
 1. LLM runtime and model responsiveness come first.
-2. Video editing performance comes second.
+2. Predictable service behavior comes second.
 3. Capacity is less important than fast active working sets.
 4. Avoid storing hot LLM data on spinning disks.
 5. Keep shared network storage available for ingress, exports, and collaboration, but not for hot model reads.
@@ -26,32 +26,32 @@ flowchart TD
 	A --> C[SSD 2]
 	A --> D[RAID10 HDD Array]
 	A --> E[SMB Share]
-	B --> B1[Ubuntu Studio and apps]
+	B --> B1[Ubuntu Server and base tools]
 	B --> B2[/ and /home]
 	C --> C1[/var/lib/ollama]
 	C --> C2[/var/lib/docker]
 	C --> C3[Optional /srv/fast-work]
 	D --> D1[/srv/media]
-	D --> D2[Bulk media and exports]
+	D --> D2[Bulk data and exports]
 	E --> E1[Transfers and collaboration only]
 	E --> E2[Not for model storage]
 ```
 
 ## Remember This
 
-1. SSD 1 keeps the workstation responsive.
+1. SSD 1 keeps the host simple and bootable.
 2. SSD 2 keeps Local_LLM fast.
-3. RAID10 keeps large media local without stealing SSD space.
+3. RAID10 keeps large non-hot data local without stealing SSD space.
 4. The SMB share is only a convenience layer.
 
 ## Recommended Layout
 
-## SSD 1: OS And Workstation Apps
+## SSD 1: OS And Base Packages
 
 Use the first 1 TB SSD for:
 
-1. Ubuntu Studio 24.04 LTS.
-2. Core workstation applications.
+1. Ubuntu Server 26.04 LTS.
+2. Base administrative packages.
 3. User home directories.
 
 Suggested posture:
@@ -72,24 +72,24 @@ Recommended mount targets:
 Reasoning:
 
 1. Keeps model pulls, model reads, container state, and Open WebUI data off the OS disk.
-2. Prevents LLM I/O from fighting the desktop and creative apps on the OS SSD.
+2. Prevents LLM I/O from fighting the OS and administrative tasks on the OS SSD.
 3. Gives the LLM stack the fastest storage available after RAM and GPU.
 
-## HDD Array: Video Projects And Bulk Data
+## HDD Array: Bulk Data
 
 Use the four 1 TB HDDs as a RAID10 array.
 
 Recommended role:
 
-1. Active project storage for larger media assets.
-2. Exports and working renders that do not need SSD latency.
-3. Bulk project data and archives that do not belong on the LLM SSD.
+1. Larger datasets that do not need SSD latency.
+2. Exports, logs, and artifacts that do not belong on SSD 2.
+3. Bulk archives that do not belong on the LLM SSD.
 
 Why RAID10:
 
-1. Better write behavior than parity RAID for creative workloads.
+1. Better write behavior than parity RAID for general bulk data.
 2. Better resilience than RAID0 while still favoring speed over raw capacity.
-3. Appropriate for the stated preference of speed over capacity.
+3. Appropriate for the stated preference of predictable throughput over maximum capacity.
 
 Do not use the HDD RAID set for:
 
@@ -138,16 +138,15 @@ Optional follow-up:
 
 1. LLM model storage should stay on SSD 2.
 2. Docker data should stay on SSD 2.
-3. Large raw media, exports, and general project bulk data should live on `/srv/media`.
-4. If Resolve caches become large, keep them under review instead of blindly placing them on the LLM SSD.
+3. Large datasets, exports, and general bulk data should live on `/srv/media`.
 5. Use `\\192.168.128.6\Storage` for shared transfers and collaborative storage, not for the main Local_LLM runtime path.
 
 ## Success Criteria
 
 The layout is correct when:
 
-1. The OS remains responsive under normal workstation use.
+1. The OS remains responsive under normal service and maintenance use.
 2. Local_LLM model access is SSD-backed.
-3. Bulk video data is offloaded to the HDD RAID10 array.
+3. Bulk non-hot data is offloaded to the HDD RAID10 array.
 4. The remote share is available for shared storage without becoming a dependency for core inference performance.
 5. The storage plan reflects speed-first priorities rather than maximum capacity.

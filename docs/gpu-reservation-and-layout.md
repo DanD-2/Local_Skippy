@@ -2,22 +2,21 @@
 
 ## Purpose
 
-This document explains how to operate the HP Z8 G4 Local_LLM host when one RTX 4060 should remain reserved for workstation display use.
+This document explains GPU allocation for the HP Z8 G4 Local_LLM host—a headless server with all three RTX 4060 GPUs dedicated to local LLM inference.
 
 ## Short Version
 
-For the current Skippy plan, the easy default is:
+For the current Skippy plan:
 
-1. Keep one GPU for the workstation.
-2. Give the other two GPUs to Local_LLM.
-3. Confirm real GPU numbering with `nvidia-smi -L` before editing `/etc/default/local-llm`.
+1. All three GPUs are dedicated to Local_LLM inference.
+2. Confirm real GPU numbering with `nvidia-smi -L` before editing `/etc/default/local-llm`.
 
 ## Picture
 
 ```mermaid
 flowchart LR
-	A[3 RTX 4060 GPUs] --> B[1 GPU for desktop and creative apps]
-	A --> C[2 GPUs for Local_LLM]
+	A[3 RTX 4060 GPUs]
+	A --> C[3 GPUs for Local_LLM]
 	C --> D[Set LOCAL_LLM_GPU_DEVICES]
 	D --> E[Apply Ollama override]
 ```
@@ -32,50 +31,24 @@ For the first deployment, do not assume:
 2. efficient single-model sharding across all cards, or
 3. identical behavior across runtimes.
 
-## Recommended Modes
+## Standard Configuration
 
-## Mode 1: Dedicated Inference Host
+### Dedicated Inference Host
 
-Use all GPUs for inference workloads.
+All three GPUs are dedicated to inference workloads on this headless server.
 
-When to use it:
-
-1. The workstation is managed remotely.
-2. No interactive desktop workload needs to stay responsive.
-3. Maximum inference capacity matters more than local console comfort.
-
-Recommended setting:
+Configuration:
 
 1. `LOCAL_LLM_GPU_DEVICES=0,1,2`
 
 Human meaning:
 
-All GPUs are available to inference. This is only the better choice if no one needs the workstation desktop to stay smooth.
-
-## Mode 2: Mixed Workstation Host
-
-Reserve one GPU for desktop or console use and expose only the remaining GPUs to inference.
-
-When to use it:
-
-1. The workstation will keep a local desktop session.
-2. One GPU should stay isolated from AI jobs.
-3. Stability and console responsiveness matter more than absolute throughput.
-
-Recommended setting:
-
-1. `LOCAL_LLM_GPU_DEVICES=1,2`
-
-Adjust the device list after validating actual GPU numbering with `nvidia-smi -L`.
-
-Human meaning:
-
-This is the safer default for Skippy because video editing, CAD, and the local desktop still matter.
+All GPUs are available to Local_LLM inference. The server has no interactive desktop workload, so maximum inference capacity is prioritized.
 
 Operational path:
 
 1. Copy `src/local-llm.env.example` to `/etc/default/local-llm`.
-2. Set `LOCAL_LLM_GPU_DEVICES` to the inference-only device list.
+2. Set `LOCAL_LLM_GPU_DEVICES=0,1,2`.
 3. Install `src/apply-ollama-gpu-policy.sh` as `/usr/local/bin/apply-ollama-gpu-policy.sh`.
 4. Run `/usr/local/bin/apply-ollama-gpu-policy.sh`.
 5. Run `systemctl daemon-reload && systemctl restart ollama`.
@@ -104,10 +77,10 @@ systemctl show ollama --property=Environment
 
 ## Operational Recommendation
 
-The host is now explicitly a workstation for video editing and CAD work, so reserved-GPU mode should be treated as the default, not an optional edge case. The small loss in raw capacity is worth the stability and predictability for interactive creative workloads.
+The host is explicitly dedicated to Local_LLM inference. All three GPUs should remain available to inference workloads.
 
-For this project, the default posture should be:
+For this project, the default posture is:
 
-1. One GPU reserved for display and creative applications.
-2. Remaining GPUs exposed to Ollama.
-3. Model sizing chosen so inference pressure does not degrade editing or CAD responsiveness.
+1. All GPUs exposed to Ollama.
+2. Model sizing chosen for optimal throughput across available GPU memory.
+3. No competing interactive workloads.

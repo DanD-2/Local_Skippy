@@ -1,5 +1,11 @@
 # DaVinci Resolve And NVIDIA Preparation
 
+## Legacy Note
+
+This document is legacy reference for the older mixed-workstation deployment path.
+
+It is not part of the current primary Ubuntu Server 26.04 dedicated-host build.
+
 ## Purpose
 
 Use this note before treating the HP Z8 G4 as both a Local_LLM host and a DaVinci Resolve workstation.

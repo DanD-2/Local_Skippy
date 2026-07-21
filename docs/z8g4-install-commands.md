@@ -6,7 +6,7 @@ Use this runbook when you are ready to execute the first Local_LLM deployment on
 
 This document translates the Local_LLM checklist into exact operator commands with a small number of values to replace.
 
-For the current mixed-workstation path, apply these commands to an Ubuntu Studio 24.04 LTS install unless the creative software requirements force a different host OS.
+For the current dedicated-server path, apply these commands to an Ubuntu Server 26.04 LTS install.
 
 ## How To Use This File
 
@@ -37,27 +37,61 @@ Current Skippy target values:
 1. Host label: `Skippy`
 2. FQDN: `Skippy.aybara.local`
 3. IP: `192.168.128.5`
-4. Admin user: `Daniel`
-5. GPU posture: `2` GPUs for Local_LLM and `1` GPU reserved for workstation use
-6. Storage posture: SSD 1 for OS and apps, SSD 2 for Local_LLM fast data, RAID10 HDD array for media storage
-7. Shared storage: `\\192.168.128.6\Storage` with user `Daniel`
+4. Admin user: `daniel`
+5. GPU posture: all `3` GPUs available to Local_LLM by default
+6. Storage posture: SSD 1 for OS and base packages, SSD 2 for Local_LLM fast data, RAID10 HDD array for bulk storage
+7. Shared storage: `\\192.168.128.6\Storage` with user `daniel`
 
 ## Replace These Values First
 
 Before running anything, replace these placeholders:
 
-1. `<GPU_LIST>` with the actual two-GPU inference device list after validation, provisionally `1,2` until the live GPU ordering is confirmed.
+1. `<GPU_LIST>` with the actual inference device list after validation, provisionally `0,1,2` until the live GPU ordering is confirmed.
 
 If you want the shortest safe path, ignore Step 11 and Step 12 until the core Local_LLM service is already working.
+
+## Optional Fast Path: Automate Installer USB (Drive D)
+
+From PowerShell in the repository root:
+
+```powershell
+pwsh -File .\src\invoke-skippy-usb-automation.ps1
+```
+
+For custom values, pass parameters like:
+
+```powershell
+pwsh -File .\src\invoke-skippy-usb-automation.ps1 -UsbDriveLetter D -Hostname Skippy -AdminUsername daniel -StaticAddressCidr 192.168.128.5/24 -Gateway 192.168.128.1 -NameServers 192.168.128.1,1.1.1.1
+```
+
+Boot from USB and append this to the Linux line in GRUB:
+
+```text
+autoinstall ds=nocloud\;s=/cdrom/nocloud/
+```
+
+After first SSH login, run:
+
+```sh
+sudo /opt/local-llm-src/bootstrap-local-llm-host.sh
+```
+
+If NVIDIA drivers were newly installed during bootstrap, reboot once and rerun the bootstrap script to complete GPU validation.
 
 Examples below assume you are running from the Local_LLM repository root on the Windows workstation.
 
 ## Step 1: Connect To The Fresh Ubuntu Host
 
+Installer identity requirement before this step:
+
+1. Create the administrative user as `daniel`.
+2. Keep the account on the default Ubuntu administrator path so `sudo` works.
+3. Enter the password interactively at install time. Do not store it in this repository.
+
 From PowerShell:
 
 ```powershell
-ssh Daniel@192.168.128.5
+ssh daniel@192.168.128.5
 ```
 
 On the host, run:
@@ -78,21 +112,14 @@ If you want the Linux host to resolve its own FQDN locally, add a hosts entry su
 echo '192.168.128.5 Skippy.aybara.local Skippy' | sudo tee -a /etc/hosts
 ```
 
-If Ubuntu Studio was not installed from the initial media but the host is already on Ubuntu 24.04 Desktop, convert the workstation to the Studio toolset before continuing with creative-app validation:
-
-```sh
-sudo apt install -y ubuntustudio-installer
-ubuntustudio-installer
-```
-
-Before continuing with Local_LLM install steps, apply the storage layout from `docs/storage-layout.md` so the machine is optimized for Local_LLM first and video editing second.
+Before continuing with Local_LLM install steps, apply the storage layout from `docs/storage-layout.md` so the machine is optimized for Local_LLM first and bulk storage second.
 
 Keep the shared SMB path `\\192.168.128.6\Storage` out of the LLM hot path. Use it for shared transfers and collaboration only.
 
 Reconnect after reboot:
 
 ```powershell
-ssh Daniel@192.168.128.5
+ssh daniel@192.168.128.5
 ```
 
 ## Step 2: Install NVIDIA Driver And Validate GPUs
@@ -128,17 +155,14 @@ sudo systemctl status docker --no-pager
 systemctl status ollama --no-pager
 ```
 
-For the current Ubuntu Studio workstation path, validate the creative stack before putting the LLM into daily use:
-
-1. Read `docs/resolve-nvidia-prep.md` before sustained Resolve use.
-2. Read `docs/cad-selection.md` before locking in the CAD workflow.
+Use `docs/post-install-server-validation.md` after the base build to validate the dedicated-server posture before treating the host as ready.
 
 ## Step 4: Copy Local_LLM Artifacts From The Workspace
 
 From PowerShell in the Local_LLM repository root:
 
 ```powershell
-scp "src/local-llm.env.example" "src/apply-ollama-gpu-policy.sh" "src/run-open-webui.sh" "src/local-llm-open-webui.service" "src/validate-local-llm.sh" Daniel@192.168.128.5:/tmp/
+scp "src/local-llm.env.example" "src/apply-ollama-gpu-policy.sh" "src/run-open-webui.sh" "src/local-llm-open-webui.service" "src/validate-local-llm.sh" daniel@192.168.128.5:/tmp/
 ```
 
 If you are running from a parent workspace instead of the Local_LLM repository root, adjust the paths accordingly.
@@ -174,9 +198,9 @@ LOCAL_LLM_WEBUI_PORT=3000
 LOCAL_LLM_WEBUI_URL=http://127.0.0.1:3000
 ```
 
-For the current Skippy plan, choose the two inference GPUs only. Do not expose the reserved workstation GPU to Ollama.
+For the current Skippy plan, use all three inference GPUs unless you deliberately choose a reduced set.
 
-Until `nvidia-smi -L` proves otherwise, plan around `LOCAL_LLM_GPU_DEVICES=1,2` and reserve the remaining GPU for desktop and creative work.
+Until `nvidia-smi -L` proves otherwise, plan around `LOCAL_LLM_GPU_DEVICES=0,1,2` for the dedicated-server path.
 
 ## Step 7: Apply The Ollama GPU Policy
 
@@ -232,21 +256,21 @@ http://192.168.128.5:3000
 From PowerShell on the Windows operator system, map the shared storage drive without storing the password in the repo:
 
 ```powershell
-$credential = Get-Credential -UserName "Daniel" -Message "Enter the password for \\192.168.128.6\Storage"
+$credential = Get-Credential -UserName "daniel" -Message "Enter the password for \\192.168.128.6\Storage"
 New-PSDrive -Name S -PSProvider FileSystem -Root "\\192.168.128.6\Storage" -Persist -Credential $credential
 ```
 
 Alternative using `net use`:
 
 ```powershell
-net use S: \\192.168.128.6\Storage /user:Daniel * /persistent:yes
+net use S: \\192.168.128.6\Storage /user:daniel * /persistent:yes
 ```
 
 Use the mapped drive for shared file movement, exports, and collaboration. Do not redirect `/var/lib/ollama`, `/var/lib/docker`, or other latency-sensitive runtime data to the network share.
 
 ## Step 12: Mount The Shared Storage On Ubuntu If Needed
 
-If the Ubuntu workstation should also access the same share locally, mount it on the host after testing the Windows mapping.
+If the Ubuntu server should also access the same share locally, mount it on the host after testing the Windows mapping.
 
 Install CIFS support:
 
@@ -265,14 +289,14 @@ sudo chmod 600 /root/.smb-skippy-storage
 Credential file contents:
 
 ```ini
-username=Daniel
+username=daniel
 password=<enter-password-here>
 ```
 
 Mount the share manually first:
 
 ```sh
-sudo mount -t cifs //192.168.128.6/Storage /mnt/storage -o credentials=/root/.smb-skippy-storage,uid=$(id -u Daniel),gid=$(id -g Daniel),iocharset=utf8,file_mode=0660,dir_mode=0770
+sudo mount -t cifs //192.168.128.6/Storage /mnt/storage -o credentials=/root/.smb-skippy-storage,uid=$(id -u daniel),gid=$(id -g daniel),iocharset=utf8,file_mode=0660,dir_mode=0770
 df -h /mnt/storage
 ```
 
@@ -303,11 +327,10 @@ If something is wrong, check these first:
 5. `cat /etc/default/local-llm`
 6. `cat /etc/systemd/system/ollama.service.d/override.conf`
 
-## Creative Workstation Follow-Up
+## Server Follow-Up
 
 Before treating the build as complete for daily use:
 
-1. Validate DaVinci Resolve using `docs/resolve-nvidia-prep.md`.
-2. Validate the first CAD path using `docs/cad-selection.md`.
-3. Keep the Ollama GPU reservation in place while the workstation is still being proven.
-4. Run `docs/post-install-workstation-validation.md` before calling the mixed workstation ready.
+1. Run `docs/post-install-server-validation.md`.
+2. Record the final GPU list in `/etc/default/local-llm`.
+3. Record where model data and container data landed on disk.

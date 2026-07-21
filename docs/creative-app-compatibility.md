@@ -1,5 +1,11 @@
 # Creative Application Compatibility Notes
 
+## Legacy Note
+
+This document is legacy reference for the older mixed-workstation deployment path.
+
+It is not part of the current primary Ubuntu Server 26.04 dedicated-host build.
+
 ## Purpose
 
 Use this note to judge whether the HP Z8 G4 can remain on a Linux-first Local_LLM path while also serving as a creative workstation.

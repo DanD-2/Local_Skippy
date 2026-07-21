@@ -8,12 +8,12 @@ Deploy a first local LLM server on Debian or Ubuntu that can serve browser-based
 
 This project already has a practical default plan:
 
-1. Use the HP Z8 G4 workstation.
-2. Install Ubuntu Studio 24.04 LTS.
-3. Reserve one GPU for the workstation.
+1. Use the HP Z8 G4 as a dedicated Local_LLM host.
+2. Install Ubuntu Server 26.04 LTS.
+3. Expose all three GPUs to inference.
 4. Use Ollama plus Open WebUI.
 5. Keep the first rollout LAN-only.
-6. Validate the mixed workstation workload before adding optional extras.
+6. Validate the headless server workflow before adding optional extras.
 
 ## Read These First
 
@@ -27,21 +27,18 @@ This project already has a practical default plan:
 
 ```mermaid
 flowchart TD
-	A[Choose host and layout] --> B[Install Ubuntu Studio]
+	A[Choose host and layout] --> B[Install Ubuntu Server]
 	B --> C[Install NVIDIA, Docker, and Ollama]
 	C --> D[Apply Local_LLM helper files and GPU policy]
 	D --> E[Enable Open WebUI]
 	E --> F[Validate local and LAN access]
-	F --> G[Validate workstation workloads]
+	F --> G[Validate server operations]
 ```
 
-The current preferred host build path is Ubuntu Studio 24.04 LTS on the HP Z8 G4 workstation when the creative toolchain remains Linux-friendly. Use `docs/ubuntu-24.04-install-runbook.md` as the primary implementation guide for the first deployment.
-Use `docs/creative-app-compatibility.md` to judge whether the active Resolve, CAD, notes, and browser workflows still justify the Linux-first host posture.
-Use `docs/resolve-nvidia-prep.md` to validate the Resolve and GPU-sharing posture before treating the workstation as production-ready.
-Use `docs/cad-selection.md` to decide whether FreeCAD or LibreCAD is the first CAD validation target.
-Use `docs/storage-layout.md` to keep the workstation optimized for Local_LLM first and video editing second.
-Use `docs/post-install-workstation-validation.md` after the base build to confirm the final Skippy workstation posture under mixed creative and Local_LLM load.
-Use `docs/z8g4-host-prep-checklist.md` before the OS install and `docs/gpu-reservation-and-layout.md` if one RTX 4060 must stay reserved for workstation use.
+The current preferred host build path is Ubuntu Server 26.04 LTS on the HP Z8 G4 for a dedicated Local_LLM deployment. Use `docs/ubuntu-server-26.04-install-runbook.md` as the primary implementation guide for the first deployment.
+Use `docs/storage-layout.md` to keep the host optimized for Local_LLM first and bulk storage second.
+Use `docs/post-install-server-validation.md` after the base build to confirm the final Skippy server posture.
+Use `docs/z8g4-host-prep-checklist.md` before the OS install.
 Use `docs/first-build-execution-checklist.md` when actually executing the first host build so the install order is explicit.
 Use `docs/z8g4-install-commands.md` when you want the exact PowerShell and on-host command sequence rather than a checklist.
 
@@ -50,19 +47,19 @@ Use `docs/z8g4-install-commands.md` when you want the exact PowerShell and on-ho
 Unless you deliberately change the plan, assume these defaults:
 
 1. Host: HP Z8 G4.
-2. OS: Ubuntu Studio 24.04 LTS.
+2. OS: Ubuntu Server 26.04 LTS.
 3. Runtime: Ollama.
 4. Web UI: Open WebUI.
-5. GPU mode: one GPU reserved for the workstation, two for Local_LLM.
+5. GPU mode: all three GPUs available to Local_LLM.
 6. Network exposure: LAN-only.
 
 ## Phase 1: Host Selection And Baseline
 
-1. Use the HP Z8 G4 workstation as the target Debian or Ubuntu host.
+1. Use the HP Z8 G4 as the target Debian or Ubuntu host.
 2. Confirm CPU, RAM, storage, and the exact GPU driver and CUDA-ready state for the three RTX 4060 cards.
 3. Confirm SSH administration path and package update state.
 4. Confirm the host has enough disk space for base software plus model storage.
-5. Decide whether one GPU must remain reserved for local workstation use.
+5. Confirm all three GPUs will remain available to inference workloads.
 6. Prepare `/etc/default/local-llm` from `src/local-llm.env.example` so the initial runtime and validation scripts have a stable configuration surface.
 
 Exit criteria:
@@ -82,7 +79,7 @@ Do not start runtime work until the machine identity, storage layout, and GPU pl
 3. Select one primary assistant model and one smaller fallback model that fit comfortably within single-GPU limits.
 4. Record model storage locations and service behavior.
 5. Measure prompt latency and GPU utilization before attempting any multi-GPU or higher-performance runtime changes.
-6. If mixed workstation mode is selected, constrain inference GPUs through the environment file and Ollama service override before production use.
+6. Constrain inference GPUs through the environment file and Ollama service override only if you later decide not to expose all three GPUs to Local_LLM.
 7. Apply the override with `src/apply-ollama-gpu-policy.sh` so the GPU reservation survives reboot and service restart.
 
 Exit criteria:

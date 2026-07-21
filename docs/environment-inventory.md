@@ -8,24 +8,23 @@ Capture the host and service assumptions that matter before deploying a local LL
 
 If you only need the current working assumptions, they are:
 
-1. Host: HP Z8 G4.
+1. Host: HP Z8 G4 (headless, dedicated to Local_LLM).
 2. Hostname: `Skippy`.
 3. IP: `192.168.128.5`.
 4. Admin user: `Daniel`.
-5. GPUs: `3` RTX 4060 cards, with `2` for Local_LLM and `1` reserved for the workstation.
+5. GPUs: `3` RTX 4060 cards, all dedicated to Local_LLM inference.
 6. Storage: SSD 1 for OS, SSD 2 for Local_LLM, RAID10 for media, SMB share for transfers only.
 
 ## Environment Picture
 
 ```mermaid
 flowchart TD
-	A[Skippy] --> B[Ubuntu Studio]
+	A[Skippy] --> B[Ubuntu Server]
 	A --> C[3 RTX 4060 GPUs]
 	A --> D[2 SSDs]
 	A --> E[4 HDD RAID10]
 	A --> F[SMB Share]
-	C --> C1[2 GPUs for Local_LLM]
-	C --> C2[1 GPU for workstation]
+	C --> C1[All 3 GPUs for Local_LLM]
 	D --> D1[SSD 1 for OS]
 	D --> D2[SSD 2 for /var/lib/ollama and /var/lib/docker]
 	E --> E1[/srv/media]
@@ -34,7 +33,7 @@ flowchart TD
 
 ## Target Platform
 
-1. HP Z8 G4 workstation running Debian or Ubuntu Linux.
+1. HP Z8 G4 server running Ubuntu Server 26.04 LTS in headless mode.
 2. SSH administrative access.
 3. LAN connectivity for browser clients.
 
@@ -52,7 +51,7 @@ flowchart TD
 3. Installed GPUs: `3` NVIDIA GeForce RTX 4060.
 4. Installed SSDs: `2` HP SSD FX900 Pro M.2 `1 TB` drives.
 5. Installed HDDs: `4` physical `1 TB` drives attached to the RAID controller.
-6. Available LAN share: `\\192.168.128.6\Storage` using `Daniel`.
+6. Available LAN share: `\\192.168.128.4\Storage` using `Daniel`.
 
 These facts make the first deployment clearly GPU-accelerated rather than CPU-only.
 
@@ -68,12 +67,11 @@ The current host plan is already specific enough to build:
 
 ## Current Resource Allocation Assumption
 
-1. `2` GPUs dedicated to Local_LLM workloads.
-2. `1` GPU reserved for desktop, media creation, CAD, and other workstation tasks.
-3. SSD 1 should prioritize OS and workstation responsiveness.
-4. SSD 2 should prioritize Local_LLM models, Docker, and fast service data.
-5. The four HDDs should be treated as a RAID-backed media array rather than part of the fast LLM path.
-6. The `\\192.168.128.6\Storage` share should be treated as shared network storage rather than a performance tier for Local_LLM.
+1. All `3` GPUs dedicated to Local_LLM inference workloads.
+2. SSD 1 should prioritize OS stability and performance.
+3. SSD 2 should prioritize Local_LLM models, Docker, and fast service data.
+4. The four HDDs should be treated as a RAID-backed media array rather than part of the fast LLM path.
+5. The `\\192.168.128.4\Storage` share should be treated as shared network storage rather than a performance tier for Local_LLM.
 
 ## Required Host Facts To Capture
 
@@ -102,11 +100,11 @@ The current host plan is already specific enough to build:
 
 ## Open Questions
 
-1. Which physical GPU indices map to the `2` Local_LLM GPUs and the `1` reserved workstation GPU?
-2. How much free disk space will remain on SSD 2 after the workstation toolchain and first model set are installed?
+1. Which physical GPU indices map to the `3` Local_LLM GPUs?
+2. How much free disk space will remain on SSD 2 after Local_LLM models and services are installed?
 3. Should the SMB share be mounted on the Ubuntu host, mapped only on Windows operator systems, or both for the first rollout?
-4. How many concurrent users need acceptable performance?
-5. Is the first target conversational use, document assistance, coding help, or a mix?
+4. How many concurrent users need acceptable performance? 1
+5. Is the first target conversational use, document assistance, coding help, or a mix? Mix
 6. Should the first rollout be operator-only or available to other local users immediately?
 
 ## What Is Already Decided Versus Still Unknown

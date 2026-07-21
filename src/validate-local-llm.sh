@@ -2,14 +2,15 @@
 set -eu
 
 environment_file="${LOCAL_LLM_ENV_FILE:-/etc/default/local-llm}"
-ollama_host="${LOCAL_LLM_OLLAMA_HOST:-127.0.0.1:11434}"
-webui_url="${LOCAL_LLM_WEBUI_URL:-http://127.0.0.1:3000}"
-expected_gpus="${LOCAL_LLM_EXPECTED_GPUS:-}"
 
 if [ -f "$environment_file" ]; then
     # shellcheck disable=SC1090
     . "$environment_file"
 fi
+
+ollama_host="${LOCAL_LLM_OLLAMA_HOST:-127.0.0.1:11434}"
+webui_url="${LOCAL_LLM_WEBUI_URL:-http://127.0.0.1:3000}"
+expected_gpus="${LOCAL_LLM_EXPECTED_GPUS:-}"
 
 failures=0
 

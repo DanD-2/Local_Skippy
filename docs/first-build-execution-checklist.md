@@ -4,16 +4,14 @@
 
 Use this checklist to execute the first Local_LLM deployment on the HP Z8 G4 without having to infer the order from multiple planning documents.
 
-This checklist assumes Ubuntu 24.04 LTS will be installed on bare metal and that the target service stack is Ollama plus Open WebUI.
-
-For the current mixed-workstation requirement, prefer Ubuntu Studio 24.04 LTS unless you have already proven the creative toolchain is compatible with a non-desktop host posture.
+This checklist assumes Ubuntu Server 26.04 LTS will be installed on bare metal and that the target service stack is Ollama plus Open WebUI.
 
 ## Before You Begin
 
 Keep these rules in front of you while you work:
 
 1. Do not move to the next step until the current step checkpoint passes.
-2. Keep one GPU reserved for the workstation unless you deliberately change that plan.
+2. Keep all three GPUs available to Local_LLM unless you deliberately change that plan.
 3. Keep Local_LLM hot data on SSD, not on the HDD array or SMB share.
 4. Use `docs/z8g4-install-commands.md` whenever you want exact copy-and-paste commands.
 
@@ -52,9 +50,9 @@ Current target values:
 1. Hostname label: `Skippy`
 2. Planned FQDN: `Skippy.aybara.local`
 3. Planned IP: `192.168.128.5`
-4. Planned Ubuntu admin user: `Daniel`
-5. GPU policy: `2` GPUs for Local_LLM and `1` GPU reserved for workstation tasks
-6. Storage policy: SSD 1 for OS and apps, SSD 2 for Local_LLM data, RAID10 HDD array for media storage
+4. Planned Ubuntu admin user: `daniel`
+5. GPU policy: all `3` GPUs available to Local_LLM by default
+6. Storage policy: SSD 1 for OS and base packages, SSD 2 for Local_LLM data, RAID10 HDD array for bulk storage
 7. Shared storage: map `\\192.168.128.6\Storage` for shared file access without using it for hot LLM data
 
 ## Step 1: Finish Host Prep Decisions
@@ -66,14 +64,14 @@ You should not start the OS install until these are decided:
 1. Hostname.
 2. LAN addressing method.
 3. Boot and data disk layout.
-4. Whether one GPU stays reserved for workstation use.
+4. Whether all three GPUs will remain exposed to Local_LLM.
 5. Whether the deployment is operator-only or multi-user on day one.
 
 For the current Skippy plan, items 1, 2, and 4 are already chosen, and item 3 should follow `docs/storage-layout.md`.
 
-## Step 2: Install Ubuntu 24.04 LTS
+## Step 2: Install Ubuntu Server 26.04 LTS
 
-Install Ubuntu 24.04 LTS on the HP Z8 G4.
+Install Ubuntu Server 26.04 LTS on the HP Z8 G4.
 
 During install:
 
@@ -98,7 +96,7 @@ Checkpoint:
 1. SSH works remotely.
 2. The host is updated.
 3. The hostname and address match the plan.
-4. The SMB share plan is clear before creative workflows begin.
+4. The SMB share plan is clear before optional shared-storage work begins.
 
 ## Step 3: Validate GPUs And Install NVIDIA Driver
 
@@ -117,9 +115,9 @@ Checkpoint:
 
 1. All expected RTX 4060 cards appear.
 2. Device numbering is recorded.
-3. You know whether the deployment is dedicated-inference mode or mixed-workstation mode.
+3. You know whether the deployment is dedicated-inference mode or a custom reduced-GPU mode.
 
-If mixed-workstation mode is required, keep the chosen inference-only GPU list available for the later environment file.
+If you choose not to expose all three GPUs, keep the chosen inference-only GPU list available for the later environment file.
 
 ## Step 4: Install Docker
 
@@ -191,9 +189,9 @@ Set at least:
 Recommended examples:
 
 1. Dedicated inference host: `LOCAL_LLM_GPU_DEVICES=0,1,2`
-2. Mixed workstation host: `LOCAL_LLM_GPU_DEVICES=1,2`
+2. Reduced GPU exposure example: `LOCAL_LLM_GPU_DEVICES=1,2`
 
-For the current Skippy plan, mixed workstation mode is required. Use a two-GPU list for Local_LLM after you confirm the actual device numbering with `nvidia-smi -L`. The provisional target posture is to reserve one GPU for the workstation and dedicate the other two to Local_LLM.
+For the current Skippy plan, dedicated inference mode is the default. Use all three GPUs for Local_LLM unless you deliberately change that posture after confirming the actual device numbering with `nvidia-smi -L`.
 
 ## Step 8: Apply Ollama GPU Policy
 
@@ -305,10 +303,10 @@ If the direct path works and you want a named endpoint later, move on to reverse
 
 The first build is complete when:
 
-1. Ubuntu 24.04 is installed and reachable over SSH.
+1. Ubuntu Server 26.04 is installed and reachable over SSH.
 2. NVIDIA drivers are working and GPUs are visible.
 3. Ollama can answer a local prompt.
 4. Open WebUI is reachable locally and from another LAN machine.
 5. The repository-backed validation script passes.
 
-After this checklist passes, continue with `docs/post-install-workstation-validation.md` before treating Skippy as ready for daily creative and Local_LLM use.
+After this checklist passes, continue with `docs/post-install-server-validation.md` before treating Skippy as ready for daily use.

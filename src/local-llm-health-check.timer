@@ -1,0 +1,13 @@
+[Unit]
+Description=Local LLM Health Check Timer
+Documentation=file:///usr/local/lib/local-llm-health-check.sh
+Requires=local-llm-health-check.service
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Unit=local-llm-health-check.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

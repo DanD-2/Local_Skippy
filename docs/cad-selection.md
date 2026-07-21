@@ -1,5 +1,11 @@
 # Free CAD Selection Notes
 
+## Legacy Note
+
+This document is legacy reference for the older mixed-workstation deployment path.
+
+It is not part of the current primary Ubuntu Server 26.04 dedicated-host build.
+
 ## Purpose
 
 Use this note to choose the first free CAD tool to validate on the HP Z8 G4 Linux workstation.
